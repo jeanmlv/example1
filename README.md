@@ -1,5 +1,9 @@
 # example1
 
-Hi Ravi, for the Data_Split_Details, I took the information from the split datasets shared by Krishna in the V-squad group. She shared the links for JAKUC, UNIFI and GALAXI-1 in the Collections folder.
+Hi Tiffany,
 
-For GALAXI, if there are multiple dataset options in Thea.View, such as “ARGES” and “ARGES and Clinical”, I'm not sure which one should be considered as the source for the split details. I think it would be better to confirm this with Krishna/Pablo to make sure we're using the correct one.
+I’m sharing with you the ARGES Flow Diagram presentation that I walked through during our meeting, as well as the ARGES Commons Inventory spreadsheet that I just showed you.
+
+The inventory is still a work in progress and represents the initial structure/model we are currently building. We’ll continue refining and populating it as we align the information and workflow with the team.
+
+Please feel free to take a look, and any feedback or suggestions are very welcome. Thanks again for the discussion today!
