@@ -1,9 +1,56 @@
 # example1
 
-Yes, that's expected. DATA_SPLIT_DETAILS is at the detailed subject/video level, so GALAXI can have many rows there. DATA_SPLITS is intended to be a summary of those records, so we should not copy all the rows from DATA_SPLIT_DETAILS.
+def ordered_visits(variable_df: pd.DataFrame) -> list[str]:
+    """Return visit labels using AVISIT_ORDER as the preferred clinical order."""
+    if "AVISIT" not in variable_df.columns:
+        return []
 
-For DATA_SPLITS, we should create one row for each unique split configuration available in DATA_SPLIT_DETAILS, based mainly on Dataset Role, CV Fold, and Split Label. Then we can summarize the number of patients/videos associated with each split.
+    work = variable_df.loc[variable_df["AVISIT"].notna()].copy()
+    if work.empty:
+        return []
 
-So, for example, if GALAXI has many subjects assigned to dev_fold0, they would appear as multiple rows in DATA_SPLIT_DETAILS, but only one summarized row for dev_fold0 in DATA_SPLITS.
+    work["AVISIT"] = work["AVISIT"].astype(str)
 
-For fields that are not available in the source data, we can leave them blank for now rather than trying to infer them.
+    # Preferred ordering: AVISIT_ORDER
+    # Examples:
+    # 2001-WEEK I-0 BASELINE
+    # 3008-WEEK M-8
+    # 3052-WEEK M-52
+    if "AVISIT_ORDER" in work.columns:
+        order = (
+            work["AVISIT_ORDER"]
+            .astype("string")
+            .str.extract(r"^\s*(\d+)", expand=False)
+        )
+
+        order = pd.to_numeric(order, errors="coerce")
+
+        if order.notna().any():
+            work["_order"] = order
+
+            return (
+                work[["AVISIT", "_order"]]
+                .dropna(subset=["_order"])
+                .groupby("AVISIT", as_index=False)["_order"]
+                .min()
+                .sort_values(["_order", "AVISIT"])["AVISIT"]
+                .tolist()
+            )
+
+    # Secondary ordering: AVISITN
+    if "AVISITN" in work.columns:
+        order = pd.to_numeric(work["AVISITN"], errors="coerce")
+
+        if order.notna().any():
+            work["_order"] = order
+
+            return (
+                work[["AVISIT", "_order"]]
+                .groupby("AVISIT", as_index=False)["_order"]
+                .min()
+                .sort_values(["_order", "AVISIT"])["AVISIT"]
+                .tolist()
+            )
+
+    # Final fallback
+    return sorted(work["AVISIT"].dropna().unique().tolist())
