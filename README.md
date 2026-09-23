@@ -1,56 +1,29 @@
 # example1
 
-def ordered_visits(variable_df: pd.DataFrame) -> list[str]:
-    """Return visit labels using AVISIT_ORDER as the preferred clinical order."""
-    if "AVISIT" not in variable_df.columns:
-        return []
+c1, c2, c3, c4, c5 = st.columns(5)
 
-    work = variable_df.loc[variable_df["AVISIT"].notna()].copy()
-    if work.empty:
-        return []
+c1.metric("Observations", f"{len(variable_df):,}")
 
-    work["AVISIT"] = work["AVISIT"].astype(str)
+c2.metric(
+    "Subjects",
+    f"{variable_df['USUBJID'].nunique():,}"
+    if "USUBJID" in variable_df.columns
+    else "—"
+)
 
-    # Preferred ordering: AVISIT_ORDER
-    # Examples:
-    # 2001-WEEK I-0 BASELINE
-    # 3008-WEEK M-8
-    # 3052-WEEK M-52
-    if "AVISIT_ORDER" in work.columns:
-        order = (
-            work["AVISIT_ORDER"]
-            .astype("string")
-            .str.extract(r"^\s*(\d+)", expand=False)
-        )
+c3.metric(
+    "Visits",
+    f"{variable_df['AVISIT'].nunique():,}"
+    if "AVISIT" in variable_df.columns
+    else "—"
+)
 
-        order = pd.to_numeric(order, errors="coerce")
+c4.metric(
+    "Mean",
+    f"{variable_df['VALUE_NUM'].mean():.2f}"
+)
 
-        if order.notna().any():
-            work["_order"] = order
-
-            return (
-                work[["AVISIT", "_order"]]
-                .dropna(subset=["_order"])
-                .groupby("AVISIT", as_index=False)["_order"]
-                .min()
-                .sort_values(["_order", "AVISIT"])["AVISIT"]
-                .tolist()
-            )
-
-    # Secondary ordering: AVISITN
-    if "AVISITN" in work.columns:
-        order = pd.to_numeric(work["AVISITN"], errors="coerce")
-
-        if order.notna().any():
-            work["_order"] = order
-
-            return (
-                work[["AVISIT", "_order"]]
-                .groupby("AVISIT", as_index=False)["_order"]
-                .min()
-                .sort_values(["_order", "AVISIT"])["AVISIT"]
-                .tolist()
-            )
-
-    # Final fallback
-    return sorted(work["AVISIT"].dropna().unique().tolist())
+c5.metric(
+    "Median",
+    f"{variable_df['VALUE_NUM'].median():.2f}"
+)
