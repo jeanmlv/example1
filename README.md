@@ -4,218 +4,377 @@ import pandas as pd
 import streamlit as st
 
 
-# ============================================================
-# Helpers
-# ============================================================
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
 
-AVAILABLE_VALUES = {"available", "yes", "y", "true", "1"}
+STATUS_COLUMNS = {
+    "Videos": "Videos",
+    "SDTM/ADaM (Med.ai)": "Med.ai",
+    "SDTM/ADaM (Domino)": "Domino",
+    "Analysis-Ready-Dataset (ARD)": "ARD",
+    "Symptom Data": "Symptom",
+    "QS": "QS",
+    "ADQS": "ADQS",
+    "Annotations": "Annotations",
+    "Clinical GT": "Clinical GT",
+    "Feature Vectors": "Feature Vectors",
+}
+
+LOCATION_COLUMNS = {
+    "SDTM/ADaM": "SDTM/ADaM Location",
+    "ARD": "ARD Location",
+    "Annotations": "Annotations Location",
+    "Clinical GT": "Clinical GT Location",
+    "Feature Vectors": "Feature Vectors Location",
+}
 
 
-def _is_available(value) -> bool:
-    """Return True when a value represents available data."""
+# =============================================================================
+# HELPERS
+# =============================================================================
+
+def normalize_text(value):
+    """Return a clean string representation of a cell value."""
     if pd.isna(value):
-        return False
+        return ""
 
-    return str(value).strip().lower() in AVAILABLE_VALUES
+    text = str(value).strip()
+
+    if text.lower() in {"nan", "none", "null"}:
+        return ""
+
+    return text
 
 
-def _availability_count(df: pd.DataFrame, column: str) -> int:
-    """Count unique studies with data available for a given column."""
-    if column not in df.columns or "Study ID" not in df.columns:
+def split_locations(value):
+    """
+    Split multiple locations stored in a single Excel cell.
+
+    Expected Excel format:
+        path_1
+        path_2
+        path_3
+
+    Each location should preferably be separated with Alt + Enter.
+    """
+    text = normalize_text(value)
+
+    if not text:
+        return []
+
+    locations = []
+
+    for item in text.splitlines():
+        item = item.strip()
+
+        if item:
+            locations.append(item)
+
+    return locations
+
+
+def count_locations(series):
+    """Count all registered locations across a pandas Series."""
+    if series is None:
         return 0
 
-    temp = df[["Study ID", column]].copy()
-    temp = temp[temp[column].apply(_is_available)]
+    total = 0
 
-    return temp["Study ID"].dropna().astype(str).nunique()
+    for value in series:
+        total += len(split_locations(value))
+
+    return total
 
 
-def _status_icon(value) -> str:
-    """Convert availability values into a compact visual indicator."""
-    if pd.isna(value):
-        return "—"
+def status_symbol(value):
+    """
+    Convert availability status into a compact symbol.
 
-    value = str(value).strip().lower()
+    ● = Available / Yes
+    ◐ = Pending
+    ○ = Missing / No / empty
+    """
+    value = normalize_text(value).lower()
 
-    if value in {"available", "yes", "y", "true", "1"}:
+    if value in {"available", "yes", "y", "true"}:
         return "●"
 
     if value in {"pending", "in progress"}:
         return "◐"
 
-    if value in {"missing", "no", "n", "false", "0"}:
-        return "○"
-
-    return "—"
+    return "○"
 
 
-def _split_locations(value) -> list[str]:
-    """
-    Split multiline location cells into individual paths.
-    Keeps the Excel structure as one study per row while allowing
-    paths to be displayed separately in the dashboard.
-    """
-    if pd.isna(value):
-        return []
+def availability_status(value):
+    """Normalize status text for the Data Locations cards."""
+    value = normalize_text(value).lower()
 
-    text = str(value).strip()
+    if value in {"available", "yes", "y", "true"}:
+        return "Available"
 
-    if not text:
-        return []
+    if value in {"pending", "in progress"}:
+        return "Pending"
 
-    # Locations in the workbook are expected to be separated
-    # by line breaks.
-    locations = [
-        line.strip()
-        for line in text.splitlines()
-        if line.strip()
-    ]
-
-    return locations
+    return "Missing"
 
 
-def _render_location_block(
-    title: str,
-    status_value,
-    location_value,
+def get_location_count(df, column):
+    """Safely count locations from a dataframe column."""
+    if column not in df.columns:
+        return 0
+
+    return count_locations(df[column])
+
+
+def render_location_list(locations):
+    """Display individual locations in a readable format."""
+    for index, location in enumerate(locations, start=1):
+        st.markdown(f"**Location {index}**")
+
+        # Make web URLs clickable.
+        if location.lower().startswith(("http://", "https://")):
+            st.markdown(f"[Open location ↗]({location})")
+            st.code(location, language=None)
+
+        # Domino/file-system paths are displayed as code.
+        else:
+            st.code(location, language=None)
+
+
+def render_location_asset(
+    title,
+    status,
+    locations,
 ):
-    """Render one Data Locations section."""
+    """Render one asset/location block."""
 
-    available = _is_available(status_value)
-    locations = _split_locations(location_value)
+    status_text = availability_status(status)
+    number_locations = len(locations)
 
-    status = "Available" if available else "Missing"
+    if number_locations == 1:
+        location_label = "1 location"
+    else:
+        location_label = f"{number_locations} locations"
+
+    # -------------------------------------------------------------------------
+    # Asset summary card
+    # -------------------------------------------------------------------------
 
     st.markdown(
         f"""
         <div style="
             border: 1px solid rgba(128,128,128,0.25);
             border-radius: 12px;
-            padding: 16px 18px;
-            margin-bottom: 12px;
+            padding: 14px 16px;
+            margin-bottom: 8px;
         ">
             <div style="
                 display:flex;
                 justify-content:space-between;
                 align-items:center;
-                margin-bottom:4px;
             ">
-                <strong>{title}</strong>
-                <span style="
+                <div>
+                    <div style="
+                        font-weight:700;
+                        font-size:15px;
+                    ">
+                        {title}
+                    </div>
+
+                    <div style="
+                        font-size:12px;
+                        opacity:0.70;
+                        margin-top:5px;
+                    ">
+                        {location_label}
+                    </div>
+                </div>
+
+                <div style="
                     font-size:12px;
                     font-weight:700;
-                    opacity:0.80;
                 ">
-                    {status}
-                </span>
-            </div>
-            <div style="
-                font-size:12px;
-                opacity:0.65;
-            ">
-                {len(locations)} location{"s" if len(locations) != 1 else ""}
+                    {status_text}
+                </div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    if locations:
-        with st.expander(
-            f"View {len(locations)} {title.lower()} location"
-            f'{"s" if len(locations) != 1 else ""}'
-        ):
-            for i, location in enumerate(locations, start=1):
-                st.markdown(f"**Location {i}**")
-                st.code(location, language=None)
+    # -------------------------------------------------------------------------
+    # Location details
+    # -------------------------------------------------------------------------
 
-    elif available:
-        st.caption("Available, but no location is currently registered.")
+    if locations:
+
+        if number_locations == 1:
+            expander_label = f"View 1 {title.lower()} location"
+        else:
+            expander_label = (
+                f"View {number_locations} {title.lower()} locations"
+            )
+
+        with st.expander(expander_label):
+            render_location_list(locations)
 
     else:
         st.caption("No location registered.")
 
 
-# ============================================================
-# Main page
-# ============================================================
+# =============================================================================
+# AVAILABILITY MATRIX
+# =============================================================================
+
+def build_availability_matrix(df):
+    """
+    Create a compact study-level availability matrix.
+
+    Locations are intentionally excluded because they are displayed separately
+    in the Data Locations section.
+    """
+
+    if df.empty:
+        return pd.DataFrame()
+
+    matrix = pd.DataFrame()
+
+    if "Study ID" in df.columns:
+        matrix["Study ID"] = df["Study ID"]
+
+    if "Study Name" in df.columns:
+        matrix["Study"] = df["Study Name"]
+
+    for source_column, display_name in STATUS_COLUMNS.items():
+        if source_column in df.columns:
+            matrix[display_name] = df[source_column].apply(status_symbol)
+
+    # Keep one logical row per study.
+    subset = [
+        column
+        for column in ["Study ID", "Study"]
+        if column in matrix.columns
+    ]
+
+    if subset:
+        matrix = matrix.drop_duplicates(subset=subset)
+
+    return matrix
+
+
+# =============================================================================
+# MAIN VIEW
+# =============================================================================
 
 def render(filtered, data):
 
-    # --------------------------------------------------------
-    # Header
-    # --------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # DATA
+    # -------------------------------------------------------------------------
+
+    df = filtered.get(
+        "02_DATA_AVAILABILITY",
+        pd.DataFrame(),
+    ).copy()
+
+    # -------------------------------------------------------------------------
+    # HEADER
+    # -------------------------------------------------------------------------
 
     st.header("Data Availability")
 
     st.markdown(
         """
         <div class="section-note">
-            Study-level availability across clinical source data,
-            SDTM/ADaM, analysis-ready datasets, annotations,
-            clinical ground truth and feature vectors.
+            Study-level availability across clinical source data, SDTM/ADaM,
+            analysis-ready datasets, annotations, clinical ground truth and
+            feature vectors.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    df = filtered.get("02_DATA_AVAILABILITY", pd.DataFrame()).copy()
-
     if df.empty:
-        st.info("No data availability records found for the selected filters.")
+        st.info("No data availability information found for the current filters.")
         return
 
-    # --------------------------------------------------------
-    # KPI cards
-    # --------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # KPI COUNTS
+    # -------------------------------------------------------------------------
 
-    total_studies = (
-        df["Study ID"].dropna().astype(str).nunique()
+    study_count = (
+        df["Study ID"].nunique()
         if "Study ID" in df.columns
         else 0
     )
 
-    sdtm_adam = max(
-        _availability_count(df, "SDTM/ADaM (Med.ai)"),
-        _availability_count(df, "SDTM/ADaM (Domino)"),
-    )
-
-    ard = _availability_count(
+    sdtm_locations = get_location_count(
         df,
-        "Analysis-Ready-Dataset (ARD)"
+        "SDTM/ADaM Location",
     )
 
-    annotations = _availability_count(
+    ard_locations = get_location_count(
         df,
-        "Annotations"
+        "ARD Location",
     )
 
-    clinical_gt = _availability_count(
+    annotation_locations = get_location_count(
         df,
-        "Clinical GT"
+        "Annotations Location",
     )
 
-    feature_vectors = _availability_count(
+    clinical_gt_locations = get_location_count(
         df,
-        "Feature Vectors"
+        "Clinical GT Location",
     )
 
-    k1, k2, k3, k4, k5, k6 = st.columns(6)
+    feature_vector_locations = get_location_count(
+        df,
+        "Feature Vectors Location",
+    )
 
-    k1.metric("Studies", total_studies)
-    k2.metric("SDTM/ADaM", sdtm_adam)
-    k3.metric("ARD", ard)
-    k4.metric("Annotations", annotations)
-    k5.metric("Clinical GT", clinical_gt)
-    k6.metric("Feature Vectors", feature_vectors)
+    # -------------------------------------------------------------------------
+    # KPI CARDS
+    # -------------------------------------------------------------------------
 
-    st.markdown("")
+    c1, c2, c3, c4, c5, c6 = st.columns(6)
 
-    # --------------------------------------------------------
-    # Availability Matrix
-    # --------------------------------------------------------
+    c1.metric(
+        "Studies",
+        study_count,
+    )
 
-    st.subheader("Availability Matrix")
+    c2.metric(
+        "SDTM/ADaM Assets",
+        sdtm_locations,
+    )
+
+    c3.metric(
+        "ARD Assets",
+        ard_locations,
+    )
+
+    c4.metric(
+        "Annotations",
+        annotation_locations,
+    )
+
+    c5.metric(
+        "Clinical GT",
+        clinical_gt_locations,
+    )
+
+    c6.metric(
+        "Feature Vectors",
+        feature_vector_locations,
+    )
+
+    # -------------------------------------------------------------------------
+    # AVAILABILITY MATRIX
+    # -------------------------------------------------------------------------
+
+    st.markdown("### Availability Matrix")
 
     st.markdown(
         """
@@ -227,181 +386,183 @@ def render(filtered, data):
         unsafe_allow_html=True,
     )
 
-    matrix_columns = [
-        "Study ID",
-        "Study Name",
-        "Videos",
-        "SDTM/ADaM (Med.ai)",
-        "SDTM/ADaM (Domino)",
-        "Analysis-Ready-Dataset (ARD)",
-        "Symptom Data",
-        "QS",
-        "ADQS",
-        "Annotations",
-        "Clinical GT",
-        "Feature Vectors",
-    ]
+    matrix = build_availability_matrix(df)
 
-    existing_columns = [
-        col for col in matrix_columns
-        if col in df.columns
-    ]
+    if not matrix.empty:
+        st.dataframe(
+            matrix,
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.info("No availability information available.")
 
-    matrix = df[existing_columns].copy()
-
-    # Remove rows without a Study ID
-    if "Study ID" in matrix.columns:
-        matrix = matrix[
-            matrix["Study ID"].notna()
-            & matrix["Study ID"].astype(str).str.strip().ne("")
-        ]
-
-    # Convert availability values to visual indicators
-    identifier_columns = {"Study ID", "Study Name"}
-
-    for col in matrix.columns:
-        if col not in identifier_columns:
-            matrix[col] = matrix[col].apply(_status_icon)
-
-    # Shorter display names
-    matrix = matrix.rename(
-        columns={
-            "SDTM/ADaM (Med.ai)": "Med.ai",
-            "SDTM/ADaM (Domino)": "Domino",
-            "Analysis-Ready-Dataset (ARD)": "ARD",
-            "Symptom Data": "Symptom",
-            "Clinical GT": "Clinical GT",
-            "Feature Vectors": "Feature Vectors",
-        }
-    )
-
-    st.dataframe(
-        matrix,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Study ID": st.column_config.TextColumn(
-                "Study ID",
-                width="medium",
-            ),
-            "Study Name": st.column_config.TextColumn(
-                "Study",
-                width="medium",
-            ),
-            "Med.ai": st.column_config.TextColumn(
-                "Med.ai",
-                width="small",
-            ),
-            "Domino": st.column_config.TextColumn(
-                "Domino",
-                width="small",
-            ),
-            "ARD": st.column_config.TextColumn(
-                "ARD",
-                width="small",
-            ),
-            "Symptom": st.column_config.TextColumn(
-                "Symptom",
-                width="small",
-            ),
-            "QS": st.column_config.TextColumn(
-                "QS",
-                width="small",
-            ),
-            "ADQS": st.column_config.TextColumn(
-                "ADQS",
-                width="small",
-            ),
-            "Annotations": st.column_config.TextColumn(
-                "Annotations",
-                width="small",
-            ),
-            "Clinical GT": st.column_config.TextColumn(
-                "Clinical GT",
-                width="small",
-            ),
-            "Feature Vectors": st.column_config.TextColumn(
-                "Feature Vectors",
-                width="small",
-            ),
-        },
-        key="availability_matrix",
-    )
-
-    # --------------------------------------------------------
-    # Data Locations
-    # --------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # DATA LOCATIONS
+    # -------------------------------------------------------------------------
 
     st.markdown("---")
-    st.subheader("Data Locations")
+    st.markdown("### Data Locations")
 
     st.markdown(
         """
         <div class="section-note">
-            Detailed storage locations are shown when a single study
-            is selected from the sidebar.
+            Detailed storage locations are shown when a single study is
+            selected from the sidebar.
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Determine studies represented in current filtered dataset
+    # Determine how many studies remain after filtering.
     if "Study ID" not in df.columns:
         st.info("Study ID is required to display data locations.")
         return
 
-    valid_df = df[
-        df["Study ID"].notna()
-        & df["Study ID"].astype(str).str.strip().ne("")
-    ].copy()
+    study_ids = (
+        df["Study ID"]
+        .dropna()
+        .astype(str)
+        .unique()
+    )
 
-    study_ids = valid_df["Study ID"].astype(str).unique()
+    # -------------------------------------------------------------------------
+    # Only show detailed locations for one selected study
+    # -------------------------------------------------------------------------
 
     if len(study_ids) != 1:
         st.info(
-            "Select one study from the sidebar to view its "
-            "Annotations, Clinical GT and Feature Vector locations."
+            "Select a single study from the sidebar to view its data locations."
         )
         return
 
-    study_df = valid_df[
-        valid_df["Study ID"].astype(str) == study_ids[0]
-    ]
+    study_df = df[
+        df["Study ID"].astype(str) == study_ids[0]
+    ].copy()
 
     row = study_df.iloc[0]
 
-    study_name = (
-        str(row.get("Study Name", "")).strip()
-        if pd.notna(row.get("Study Name"))
-        else ""
+    study_id = normalize_text(
+        row.get("Study ID", "")
     )
 
-    study_id = str(row.get("Study ID", "")).strip()
+    study_name = normalize_text(
+        row.get("Study Name", "")
+    )
+
+    # -------------------------------------------------------------------------
+    # Study heading
+    # -------------------------------------------------------------------------
 
     if study_name:
         st.markdown(f"### {study_name}")
+
+    if study_id:
         st.caption(study_id)
-    else:
-        st.markdown(f"### {study_id}")
 
-    # --------------------------------------------------------
-    # Location cards
-    # --------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # SDTM / ADaM
+    # -------------------------------------------------------------------------
 
-    _render_location_block(
+    sdtm_locations_list = []
+
+    if "SDTM/ADaM Location" in study_df.columns:
+        for value in study_df["SDTM/ADaM Location"]:
+            sdtm_locations_list.extend(split_locations(value))
+
+    # Determine SDTM status from Med.ai / Domino.
+    sdtm_status = "Missing"
+
+    medai_status = availability_status(
+        row.get("SDTM/ADaM (Med.ai)", "")
+    )
+
+    domino_status = availability_status(
+        row.get("SDTM/ADaM (Domino)", "")
+    )
+
+    if (
+        medai_status == "Available"
+        or domino_status == "Available"
+        or sdtm_locations_list
+    ):
+        sdtm_status = "Available"
+
+    elif (
+        medai_status == "Pending"
+        or domino_status == "Pending"
+    ):
+        sdtm_status = "Pending"
+
+    render_location_asset(
+        "SDTM/ADaM",
+        sdtm_status,
+        sdtm_locations_list,
+    )
+
+    # -------------------------------------------------------------------------
+    # ARD
+    # -------------------------------------------------------------------------
+
+    ard_locations_list = []
+
+    if "ARD Location" in study_df.columns:
+        for value in study_df["ARD Location"]:
+            ard_locations_list.extend(split_locations(value))
+
+    render_location_asset(
+        "ARD",
+        row.get(
+            "Analysis-Ready-Dataset (ARD)",
+            "",
+        ),
+        ard_locations_list,
+    )
+
+    # -------------------------------------------------------------------------
+    # ANNOTATIONS
+    # -------------------------------------------------------------------------
+
+    annotation_locations_list = []
+
+    if "Annotations Location" in study_df.columns:
+        for value in study_df["Annotations Location"]:
+            annotation_locations_list.extend(split_locations(value))
+
+    render_location_asset(
         "Annotations",
-        row.get("Annotations"),
-        row.get("Annotations Location"),
+        row.get("Annotations", ""),
+        annotation_locations_list,
     )
 
-    _render_location_block(
+    # -------------------------------------------------------------------------
+    # CLINICAL GT
+    # -------------------------------------------------------------------------
+
+    clinical_gt_locations_list = []
+
+    if "Clinical GT Location" in study_df.columns:
+        for value in study_df["Clinical GT Location"]:
+            clinical_gt_locations_list.extend(split_locations(value))
+
+    render_location_asset(
         "Clinical GT",
-        row.get("Clinical GT"),
-        row.get("Clinical GT Location"),
+        row.get("Clinical GT", ""),
+        clinical_gt_locations_list,
     )
 
-    _render_location_block(
+    # -------------------------------------------------------------------------
+    # FEATURE VECTORS
+    # -------------------------------------------------------------------------
+
+    feature_vector_locations_list = []
+
+    if "Feature Vectors Location" in study_df.columns:
+        for value in study_df["Feature Vectors Location"]:
+            feature_vector_locations_list.extend(split_locations(value))
+
+    render_location_asset(
         "Feature Vectors",
-        row.get("Feature Vectors"),
-        row.get("Feature Vectors Location"),
+        row.get("Feature Vectors", ""),
+        feature_vector_locations_list,
     )
