@@ -1,3 +1,44 @@
 # example1
 
-git diff --no-index --stat "structure/Arges/Commons Dashboard" "../arges_commons_dashboard"
+PS C:\Users\JMende95\OneDrive - JNJ\Desktop\thea_dash> git diff --no-index --stat "structure/Arges/Commons Dashboard" "../arges_commons_dashboard"
+warning: in the working copy of '../arges_commons_dashboard/src/ard_loader.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/src/config.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/src/data_loader.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/src/ui.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/ard.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/data_analysis.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/data_availability.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/data_splits.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/external_data.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/overview.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/processing.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/studies_assets.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/views/variable_definitions.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/COMMIT_EDITMSG', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/FETCH_HEAD', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/HEAD', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/ORIG_HEAD', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/config', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/description', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/applypatch-msg.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/commit-msg.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/fsmonitor-watchman.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/post-update.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-applypatch.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-commit.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-merge-commit.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-push.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-rebase.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-receive.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/prepare-commit-msg.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/push-to-checkout.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/sendemail-validate.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/hooks/update.sample', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/info/exclude', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/logs/HEAD', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/logs/refs/heads/main', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/logs/refs/remotes/origin/HEAD', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/logs/refs/remotes/origin/main', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/refs/heads/main', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/refs/remotes/origin/HEAD', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '../arges_commons_dashboard/.git/refs/remotes/origin/main', LF will be replaced by CRLF the next time Git touches it"
