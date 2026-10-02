@@ -1,115 +1,120 @@
 # example1
 
-# ==============================================================================
-# ARGES Commons -> Thea Dashboard synchronization
-# ==============================================================================
+PS C:\Users\JMende95\OneDrive - JNJ\Desktop\thea_dash> .\sync_arges_to_thea.ps1
 
-$Source = Join-Path $PSScriptRoot "..\arges_commons_dashboard"
-$Destination = Join-Path $PSScriptRoot "structure\Arges\Commons Dashboard"
+==============================================
+ ARGES Commons -> Thea Dashboard Sync
+==============================================
 
-Write-Host ""
-Write-Host "=============================================="
-Write-Host " ARGES Commons -> Thea Dashboard Sync"
-Write-Host "=============================================="
-Write-Host ""
+Source:
+C:\Users\JMende95\OneDrive - JNJ\Desktop\thea_dash\..\arges_commons_dashboard
 
-# ------------------------------------------------------------------------------
-# Validate paths
-# ------------------------------------------------------------------------------
+Destination:
+C:\Users\JMende95\OneDrive - JNJ\Desktop\thea_dash\structure\Arges\Commons Dashboard
 
-if (-not (Test-Path $Source)) {
-    Write-Host "ERROR: Source repository not found:"
-    Write-Host $Source
-    exit 1
-}
+The following items will be synchronized:
+  - src
+  - views
+  - ARGES_COMMONS.xlsx
 
-if (-not (Test-Path $Destination)) {
-    Write-Host "ERROR: Thea Dashboard destination not found:"
-    Write-Host $Destination
-    exit 1
-}
+Continue? (y/n): y
 
-Write-Host "Source:"
-Write-Host $Source
+Starting synchronization...
 
-Write-Host ""
-Write-Host "Destination:"
-Write-Host $Destination
-Write-Host ""
 
-# ------------------------------------------------------------------------------
-# Files/directories to synchronize
-# ------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows                              
+-------------------------------------------------------------------------------
 
-$Items = @(
-    "src",
-    "views",
-    "ARGES_COMMONS.xlsx"
-)
+  Started : Friday, October 2, 2026 1:05:15 PM
+   Source : C:\Users\JMende95\OneDrive - JNJ\Desktop\arges_commons_dashboard\src\
+     Dest : C:\Users\JMende95\OneDrive - JNJ\Desktop\thea_dash\structure\Arges\Commons Dashboard\src\
 
-Write-Host "The following items will be synchronized:"
-foreach ($Item in $Items) {
-    Write-Host "  - $Item"
-}
+    Files : *.*
+            
+Exc Files : *.pyc
+            
+ Exc Dirs : __pycache__
+            
+  Options : *.* /S /E /DCOPY:DA /COPY:DAT /R:1000000 /W:30 
 
-Write-Host ""
+------------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------------
-# Confirmation
-# ------------------------------------------------------------------------------
+                           6    C:\Users\JMende95\OneDrive - JNJ\Desktop\arges_commons_dashboard\src\
+100%        Older                   6450        ard_loader.py
+100%        Older                    598        config.py
+100%        Older                   1061        data_loader.py
+100%        New File                1821        filters.py
+100%        Older                   5551        ui.py
+100%        Older                      0        __init__.py
 
-$Confirmation = Read-Host "Continue? (y/n)"
+------------------------------------------------------------------------------
 
-if ($Confirmation -ne "y") {
-    Write-Host ""
-    Write-Host "Synchronization cancelled."
-    exit
-}
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         2         0         2         0         0         0
+   Files :         6         6         0         0         0         0
+   Bytes :    15.1 k    15.1 k         0         0         0         0
+   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
 
-Write-Host ""
-Write-Host "Starting synchronization..."
-Write-Host ""
 
-# ------------------------------------------------------------------------------
-# Copy src
-# ------------------------------------------------------------------------------
+   Speed :             143,342 Bytes/sec.
+   Speed :               8.202 MegaBytes/min.
+   Ended : Friday, October 2, 2026 1:05:15 PM
 
-robocopy `
-    (Join-Path $Source "src") `
-    (Join-Path $Destination "src") `
-    /E `
-    /XD "__pycache__" `
-    /XF "*.pyc"
 
-# ------------------------------------------------------------------------------
-# Copy views
-# ------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows                              
+-------------------------------------------------------------------------------
 
-robocopy `
-    (Join-Path $Source "views") `
-    (Join-Path $Destination "views") `
-    /E `
-    /XD "__pycache__" `
-    /XF "*.pyc"
+  Started : Friday, October 2, 2026 1:05:17 PM
+   Source : C:\Users\JMende95\OneDrive - JNJ\Desktop\arges_commons_dashboard\views\
+     Dest : C:\Users\JMende95\OneDrive - JNJ\Desktop\thea_dash\structure\Arges\Commons Dashboard\views\
 
-# ------------------------------------------------------------------------------
-# Copy workbook
-# ------------------------------------------------------------------------------
+    Files : *.*
+            
+Exc Files : *.pyc
+            
+ Exc Dirs : __pycache__
+            
+  Options : *.* /S /E /DCOPY:DA /COPY:DAT /R:1000000 /W:30 
 
-Copy-Item `
-    (Join-Path $Source "ARGES_COMMONS.xlsx") `
-    (Join-Path $Destination "ARGES_COMMONS.xlsx") `
-    -Force
+------------------------------------------------------------------------------
 
-Write-Host ""
-Write-Host "=============================================="
-Write-Host " Synchronization completed"
-Write-Host "=============================================="
-Write-Host ""
-Write-Host "Review the changes with:"
-Write-Host ""
-Write-Host "    git status"
-Write-Host "    git diff --stat"
-Write-Host ""
-Write-Host "Nothing has been committed or pushed."
-Write-Host ""
+                          10    C:\Users\JMende95\OneDrive - JNJ\Desktop\arges_commons_dashboard\views\
+100%        Older                   1682        ard.py
+100%        Older                    785        data_analysis.py
+100%        Older                  14224        data_availability.py
+100%        Older                   1318        data_splits.py
+100%        Older                   1126        external_data.py
+100%        Older                  11361        overview.py
+100%        Older                   1202        processing.py
+100%        Older                    786        studies_assets.py
+100%        Older                   1802        variable_definitions.py
+100%        Older                      0        __init__.py
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         2         0         2         0         0         0
+   Files :        10        10         0         0         0         0
+   Bytes :    33.4 k    33.4 k         0         0         0         0
+   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
+
+
+   Speed :             233,238 Bytes/sec.
+   Speed :              13.346 MegaBytes/min.
+   Ended : Friday, October 2, 2026 1:05:18 PM
+
+
+==============================================
+ Synchronization completed
+==============================================
+
+Review the changes with:
+
+    git status
+    git diff --stat
+
+Nothing has been committed or pushed.
+
+PS C:\Users\JMende95\OneDrive - JNJ\Desktop\thea_dash> 
