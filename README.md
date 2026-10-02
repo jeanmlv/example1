@@ -1,44 +1,115 @@
 # example1
 
-PS C:\Users\JMende95\OneDrive - JNJ\Desktop\thea_dash> git diff --no-index --stat "structure/Arges/Commons Dashboard" "../arges_commons_dashboard"
-warning: in the working copy of '../arges_commons_dashboard/src/ard_loader.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/src/config.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/src/data_loader.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/src/ui.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/ard.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/data_analysis.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/data_availability.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/data_splits.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/external_data.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/overview.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/processing.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/studies_assets.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/views/variable_definitions.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/COMMIT_EDITMSG', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/FETCH_HEAD', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/HEAD', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/ORIG_HEAD', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/config', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/description', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/applypatch-msg.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/commit-msg.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/fsmonitor-watchman.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/post-update.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-applypatch.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-commit.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-merge-commit.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-push.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-rebase.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/pre-receive.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/prepare-commit-msg.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/push-to-checkout.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/sendemail-validate.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/hooks/update.sample', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/info/exclude', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/logs/HEAD', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/logs/refs/heads/main', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/logs/refs/remotes/origin/HEAD', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/logs/refs/remotes/origin/main', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/refs/heads/main', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/refs/remotes/origin/HEAD', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of '../arges_commons_dashboard/.git/refs/remotes/origin/main', LF will be replaced by CRLF the next time Git touches it"
+# ==============================================================================
+# ARGES Commons -> Thea Dashboard synchronization
+# ==============================================================================
+
+$Source = Join-Path $PSScriptRoot "..\arges_commons_dashboard"
+$Destination = Join-Path $PSScriptRoot "structure\Arges\Commons Dashboard"
+
+Write-Host ""
+Write-Host "=============================================="
+Write-Host " ARGES Commons -> Thea Dashboard Sync"
+Write-Host "=============================================="
+Write-Host ""
+
+# ------------------------------------------------------------------------------
+# Validate paths
+# ------------------------------------------------------------------------------
+
+if (-not (Test-Path $Source)) {
+    Write-Host "ERROR: Source repository not found:"
+    Write-Host $Source
+    exit 1
+}
+
+if (-not (Test-Path $Destination)) {
+    Write-Host "ERROR: Thea Dashboard destination not found:"
+    Write-Host $Destination
+    exit 1
+}
+
+Write-Host "Source:"
+Write-Host $Source
+
+Write-Host ""
+Write-Host "Destination:"
+Write-Host $Destination
+Write-Host ""
+
+# ------------------------------------------------------------------------------
+# Files/directories to synchronize
+# ------------------------------------------------------------------------------
+
+$Items = @(
+    "src",
+    "views",
+    "ARGES_COMMONS.xlsx"
+)
+
+Write-Host "The following items will be synchronized:"
+foreach ($Item in $Items) {
+    Write-Host "  - $Item"
+}
+
+Write-Host ""
+
+# ------------------------------------------------------------------------------
+# Confirmation
+# ------------------------------------------------------------------------------
+
+$Confirmation = Read-Host "Continue? (y/n)"
+
+if ($Confirmation -ne "y") {
+    Write-Host ""
+    Write-Host "Synchronization cancelled."
+    exit
+}
+
+Write-Host ""
+Write-Host "Starting synchronization..."
+Write-Host ""
+
+# ------------------------------------------------------------------------------
+# Copy src
+# ------------------------------------------------------------------------------
+
+robocopy `
+    (Join-Path $Source "src") `
+    (Join-Path $Destination "src") `
+    /E `
+    /XD "__pycache__" `
+    /XF "*.pyc"
+
+# ------------------------------------------------------------------------------
+# Copy views
+# ------------------------------------------------------------------------------
+
+robocopy `
+    (Join-Path $Source "views") `
+    (Join-Path $Destination "views") `
+    /E `
+    /XD "__pycache__" `
+    /XF "*.pyc"
+
+# ------------------------------------------------------------------------------
+# Copy workbook
+# ------------------------------------------------------------------------------
+
+Copy-Item `
+    (Join-Path $Source "ARGES_COMMONS.xlsx") `
+    (Join-Path $Destination "ARGES_COMMONS.xlsx") `
+    -Force
+
+Write-Host ""
+Write-Host "=============================================="
+Write-Host " Synchronization completed"
+Write-Host "=============================================="
+Write-Host ""
+Write-Host "Review the changes with:"
+Write-Host ""
+Write-Host "    git status"
+Write-Host "    git diff --stat"
+Write-Host ""
+Write-Host "Nothing has been committed or pushed."
+Write-Host ""
