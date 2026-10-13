@@ -1,9 +1,11 @@
 # example1
 
-One concern I have is visibility into when new clinical datasets are ingested into Med.AI.
+Actually, Tiffany, there are two possible scenarios when we follow up with the IDARs regarding missing variables:
 
-Since I need to keep our ARDs, variable gap analyses, and clinical data inventory up to date, it would be really helpful to have a way to track when new SDTM/ADaM datasets become available.
+1. **New or updated clinical datasets:** The IDARs may coordinate the availability of additional SDTM/ADaM datasets in Med.AI. Once these become available, I import them into Domino, update the ARD, and rerun the variable gap analysis to check whether the missing variables can be recovered.
 
-Currently, I'm not automatically notified when new data are ingested, so I often have to follow up with the team to check for updates.
+2. **Study metadata:** Sometimes, the IDARs simply provide additional documentation, such as the annotated CRF (aCRF) or ADaM metadata, which helps me understand how the study data were collected, derived, and mapped. I can then investigate whether the missing variables can be identified or derived from the datasets we already have.
 
-I think having a more structured communication or notification process would help us keep everything synchronized and avoid missing newly available clinical data.
+So, resolving missing variables doesn't always require new data ingestion into Med.AI. Sometimes, additional metadata is enough to clarify the mappings and complete parts of the ARD.
+
+Regarding your question about whether existing Med.AI files are overwritten or new assets are created, I'm not entirely sure how that process is managed.
