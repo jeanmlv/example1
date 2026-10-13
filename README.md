@@ -1,9 +1,9 @@
 # example1
 
-I'm not entirely sure if Pablo is the one submitting those requests, but I previously discussed this with him regarding the QUASAR study.
+One concern I have is visibility into when new clinical datasets are ingested into Med.AI.
 
-At that time, we identified that a new SCOPE request might be needed to access updated clinical data. Pablo also raised concerns about the scalability of submitting separate SCOPE requests every time new datasets become available.
+Since I need to keep our ARDs, variable gap analyses, and clinical data inventory up to date, it would be really helpful to have a way to track when new SDTM/ADaM datasets become available.
 
-More recently, Jayron confirmed that additional QUASAR data up to Week 188 had been successfully ingested into the Med.AI Data Lake.
+Currently, I'm not automatically notified when new data are ingested, so I often have to follow up with the team to check for updates.
 
-So Pablo is definitely involved in discussions around data access, but I'm not sure if he's the one formally submitting the ingestion requests.
+I think having a more structured communication or notification process would help us keep everything synchronized and avoid missing newly available clinical data.
