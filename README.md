@@ -1,9 +1,9 @@
 # example1
 
-Hi Tiffany, just to summarize my workflow with the ARDs:
+I'm not entirely sure if Pablo is the one submitting those requests, but I previously discussed this with him regarding the QUASAR study.
 
-1. **Med.AI:** I access the available clinical datasets (SDTM/ADaM).
-2. **Domino:** I import the datasets, generate the ARDs, and perform the variable gap analysis.
-3. **IDAR Team:** Once we identify missing variables, we reach out to the IDARs to clarify where the required data or metadata can be obtained to complete our ARDs.
-4. **ORBIT Team:** They support us with follow-ups on pending items with the IDARs.
-5. **IBD Tracker:** Based on these updates, we maintain the tracker to keep Vasanth and Pablo informed about the progress and outstanding gaps across studies.
+At that time, we identified that a new SCOPE request might be needed to access updated clinical data. Pablo also raised concerns about the scalability of submitting separate SCOPE requests every time new datasets become available.
+
+More recently, Jayron confirmed that additional QUASAR data up to Week 188 had been successfully ingested into the Med.AI Data Lake.
+
+So Pablo is definitely involved in discussions around data access, but I'm not sure if he's the one formally submitting the ingestion requests.
