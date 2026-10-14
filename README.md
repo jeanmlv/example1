@@ -1,9 +1,10 @@
 # example1
 
-python -c "import duckdb; print('DuckDB:', duckdb.__version__)"
+python -m venv /mnt/quasar/venv
 
-python -c "import pyarrow; print('PyArrow:', pyarrow.__version__)"
+/mnt/quasar/venv/bin/python -m pip install \
+  "duckdb==1.3.2" \
+  "pyarrow==17.0.0" \
+  "openpyxl==3.1.5"
 
-python -c "import openpyxl; print('OpenPyXL:', openpyxl.__version__)"
-
-python -u merge_ard_files_v5.py 2>&1 | tee /mnt/quasar/output/merge_v5.log
+  
