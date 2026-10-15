@@ -14,7 +14,7 @@ from src.ard_loader import (
     study_id_from_filename,
     variable_catalog,
 )
-from src.config import JNJ_RED
+from src.config import JNJ_RED, JNJ_RED_PALETTE
 
 
 def _render_portfolio_summary(filtered: dict[str, pd.DataFrame]) -> None:
@@ -148,6 +148,7 @@ def _render_categorical_explorer(variable_df: pd.DataFrame, variable: str, visit
             y="Count",
             color="VALUE",
             barmode="group",
+            color_discrete_sequence=JNJ_RED_PALETTE,
             category_orders={"AVISIT": visits},
             labels={"AVISIT": "Visit", "VALUE": variable},
         )
@@ -168,20 +169,46 @@ def _render_variable_explorer(filtered: dict[str, pd.DataFrame]) -> None:
     studies = filtered.get("01_STUDIES", pd.DataFrame())
     study_ids = studies["Study ID"].dropna().astype(str).tolist() if "Study ID" in studies else []
 
+    # Store the uploaded ARD independently from the file_uploader widget.
+    # Widget state can be cleared when another dashboard section is rendered.
+    if "overview_ard_bytes" not in st.session_state:
+        st.session_state["overview_ard_bytes"] = None
+    if "overview_ard_name" not in st.session_state:
+        st.session_state["overview_ard_name"] = None
+    if "overview_ard_upload_version" not in st.session_state:
+        st.session_state["overview_ard_upload_version"] = 0
+
     uploaded = st.file_uploader(
         "Upload ARD (.csv)",
         type=["csv"],
-        key="overview_ard_upload",
+        key=f"overview_ard_upload_{st.session_state['overview_ard_upload_version']}",
         help="Upload an Analysis-Ready Dataset (ARD) CSV for the current session.",
     )
+
+    if uploaded is not None:
+        new_bytes = uploaded.getvalue()
+        if (new_bytes != st.session_state["overview_ard_bytes"]
+                or uploaded.name != st.session_state["overview_ard_name"]):
+            st.session_state["overview_ard_bytes"] = new_bytes
+            st.session_state["overview_ard_name"] = uploaded.name
 
     ard = None
     source_label = None
 
-    if uploaded is not None:
+    if st.session_state["overview_ard_bytes"] is not None:
+        col_info, col_remove = st.columns([5, 1])
+        with col_info:
+            st.caption(f"Active uploaded ARD: {st.session_state['overview_ard_name']}")
+        with col_remove:
+            if st.button("Remove ARD", key="overview_remove_ard"):
+                st.session_state["overview_ard_bytes"] = None
+                st.session_state["overview_ard_name"] = None
+                st.session_state["overview_ard_upload_version"] += 1
+                st.rerun()
+
         try:
-            ard = load_uploaded_ard(uploaded.getvalue())
-            source_label = uploaded.name
+            ard = load_uploaded_ard(st.session_state["overview_ard_bytes"])
+            source_label = st.session_state["overview_ard_name"]
         except Exception as exc:
             st.error(f"The uploaded ARD could not be loaded: {exc}")
             return
@@ -263,30 +290,62 @@ def _render_variable_explorer(filtered: dict[str, pd.DataFrame]) -> None:
     subjects = variable_df["USUBJID"].nunique() if "USUBJID" in variable_df else None
     visits = ordered_visits(variable_df)
 
-    k1, k2, k3, k4 = st.columns(4)
+    k1, k2, k3, k4, k5 = st.columns(5)
+
     k1.metric("Observations", f"{observations:,}")
-    k2.metric("Subjects", f"{subjects:,}" if subjects is not None else "—")
-    k3.metric("Visits", f"{len(visits):,}" if visits else "—")
+
+    k2.metric(
+        "Subjects",
+        f"{subjects:,}" if subjects is not None else "—"
+    )
+
+    k3.metric(
+        "Visits",
+        f"{len(visits):,}" if visits else "—"
+    )
 
     if kind == "numeric":
-        k4.metric("Median", f"{variable_df['VALUE'].median():,.2f}")
-        _render_numeric_explorer(variable_df, row["Variable"], visits)
+        k4.metric(
+            "Mean",
+            f"{variable_df['VALUE'].mean():.2f}"
+        )
+
+        k5.metric(
+            "Median",
+            f"{variable_df['VALUE'].median():.2f}"
+        )
+
+        _render_numeric_explorer(
+        variable_df,
+        row["Variable"],
+        visits
+        )
+
     else:
-        k4.metric("Categories", f"{variable_df['VALUE'].nunique():,}")
-        _render_categorical_explorer(variable_df, row["Variable"], visits)
+        k4.metric(
+            "Categories",
+            f"{variable_df['VALUE'].nunique():,}"
+        )
+
+        k5.metric(
+            "Mode",
+            (
+             str(variable_df["VALUE"].mode().iloc[0])
+                if not variable_df["VALUE"].mode().empty
+                else "—"
+            )
+        )
+
+        _render_categorical_explorer(
+            variable_df,
+            row["Variable"],
+            visits
+        )
 
     export_df = variable_df.copy()
     export_df.insert(0, "PARAMCD", row["Variable"])
     export_df.insert(1, "VALUE_TYPE", row["Value Type"])
     export_df.insert(2, "SOURCE_COLUMN", row["Column"])
-
-    st.download_button(
-        "Download selected variable CSV",
-        data=export_df.to_csv(index=False).encode("utf-8"),
-        file_name=f"{row['Variable']}_{row['Value Type']}_variable_export.csv",
-        mime="text/csv",
-        key="overview_variable_download",
-    )
 
 
 def render(filtered: dict[str, pd.DataFrame], data: dict[str, pd.DataFrame]) -> None:
