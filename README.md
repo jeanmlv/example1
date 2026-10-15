@@ -1,5 +1,7 @@
 # example1
 
-grep -nE 'MEMORY_LIMIT|SET threads|preserve_insertion_order' /mnt/quasar/scripts/merge_ard_files_v4.py
+ps -eo pid,etime,%cpu,%mem,rss,stat,cmd | grep '[m]erge_ard_files_v4.py'
 
-cat /sys/fs/cgroup/memory.max 2>/dev/null
+tail -n 15 /mnt/quasar/output/merge_v4_16gb.log
+
+stat /mnt/quasar/output/merge_v4_16gb.log
