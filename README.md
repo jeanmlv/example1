@@ -193,3 +193,4 @@ def ordered_visits(variable_df: pd.DataFrame) -> list[str]:
     # Final fallback
     return sorted(work["AVISIT"].dropna().unique().tolist())
 
+
