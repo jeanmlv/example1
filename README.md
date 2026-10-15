@@ -1,10 +1,10 @@
 # example1
 
-Hi Basudeb, good morning!
+Hi Krishna, good morning!
 
-Regarding **GALAXI**, do you think we could follow up with Shuixin on the ADaM metadata? We still need this information to proceed with the variable gap analysis.
+Do you know where the videos for each clinical study are stored? I'm trying to locate them, but I'm not sure which repository or platform they are available in.
 
-Also, regarding **STARDUST**, in his last email on Friday (Oct 9), Raju mentioned that we need to contact the Data Acquisition team to access the metadata. Do you know who we should reach out to?
+Could you please point me in the right direction?
 
 Thanks!
 
