@@ -1,11 +1,13 @@
 # example1
 
-Thanks, Basudeb, for following up with Shuixin and for checking the Data Acquisition contact for STARDUST.
+Thanks, Basudeb.
 
-Regarding the SCOPE request, I agree that it would be helpful to have someone from the team guide us through the submission process.
+Yes, this is related to QUASAR (CNTO1959UC03001).
 
-As far as I understand, we still need to confirm whether the specific tables requested by Yao are already covered by an existing SCOPE request or whether a new request is required.
+I have already imported the recently available data up to Week 188 from Med.AI into Domino and updated the corresponding ARD.
 
-If they are already available under an existing SCOPE, we could potentially use those datasets without submitting a new request.
+According to our Variable Tracker, Brijesh Ravi and Katherine Wilde are listed as the PLs for QUASAR.
 
-Thanks again for your support!
+However, I'm not sure which additional tables Ye Mao is referring to. Could you please clarify which specific tables were requested and whether they are needed for our Variable Gap Analysis or for a separate statistical analysis?
+
+Once we have the list, I can check whether those tables are already available in the datasets we have access to before we consider submitting a new SCOPE request.
