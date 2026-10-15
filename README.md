@@ -1,13 +1,11 @@
 # example1
 
-Thanks, Basudeb.
+Thanks, Basudeb, for sharing the list.
 
-Yes, this is related to QUASAR (CNTO1959UC03001).
+I understand now. The updated QUASAR datasets up to Week 188 have already been imported into Domino, and I've updated the corresponding ARD.
 
-I have already imported the recently available data up to Week 188 from Med.AI into Domino and updated the corresponding ARD.
+However, I haven't specifically checked whether all these endpoints, including Endoscopic Healing, Histologic Remission, and Histologic-Endoscopic Mucosal Healing, are available in the current datasets.
 
-According to our Variable Tracker, Brijesh Ravi and Katherine Wilde are listed as the PLs for QUASAR.
+I'll review the available variables and metadata to see whether these endpoints are already included or if additional datasets are needed.
 
-However, I'm not sure which additional tables Ye Mao is referring to. Could you please clarify which specific tables were requested and whether they are needed for our Variable Gap Analysis or for a separate statistical analysis?
-
-Once we have the list, I can check whether those tables are already available in the datasets we have access to before we consider submitting a new SCOPE request.
+I'll let you know what I find so we can determine whether a new SCOPE request is necessary.
