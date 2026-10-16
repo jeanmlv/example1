@@ -1,9 +1,9 @@
 # example1
 
-Hi Eric, I've created a new PR for the latest ARGES Commons dashboard updates, including the new ARGES Models section, updated clinical data inventory, and improvements to the existing dashboard views.
+Hi Basudeb, I'm trying to submit a SPACE access request through SAM, but I'm having some issues filling out the form.
 
-The changes have been synchronized into the Thea Dash repository.
+When I try to select a compound, no options appear in the dropdown list. I'm also unable to find any names in the SPACE User field.
 
-When you have a chance, could you please review and merge the PR into dev and restart the Domino app so the latest updates become available to the team?
+Do you know if there's something I need to do first, or if there might be an issue with the form?
 
-Thanks for your help!
+I've attached a screenshot for reference.
