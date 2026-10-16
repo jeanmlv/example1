@@ -1,9 +1,11 @@
 # example1
 
-Hi Basudeb, I'm trying to submit a SPACE access request through SAM, but I'm having some issues filling out the form.
+Hi Basudeb, I'm trying to complete the SPACE access request through SAM, but I'm facing two issues.
 
-When I try to select a compound, no options appear in the dropdown list. I'm also unable to find any names in the SPACE User field.
+First, I can't find either my name or Pablo's name in the SPACE User field.
 
-Do you know if there's something I need to do first, or if there might be an issue with the form?
+Also, in the Compound field, I can only select CNTO1275, but the full STARDUST study ID (CNTO1275CRD3005) doesn't appear as an option.
 
-I've attached a screenshot for reference.
+Do you know if selecting CNTO1275 is sufficient for STARDUST, and how I should proceed if our names are not listed?
+
+Thanks for your help!
