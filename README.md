@@ -21,3 +21,7 @@ I also organized the dashboard into different sections to make it easier to navi
 I'd be more than happy to walk you through the architecture, how I developed it, and how we maintain it. I think a similar approach could definitely be useful for other Immunology projects as well!
 
 Just let me know whenever you'd like to connect!
+
+The dashboard is built around our ARGES_COMMONS Excel inventory, which currently serves as the central source of information (although I'm considering migrating to a more structured database solution, such as SQL, in the future to improve scalability and data management).
+
+We continuously update this inventory as we receive new data and feedback from the team, and then periodically synchronize those updates with the dashboard published in Domino.
