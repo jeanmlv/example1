@@ -1,7 +1,7 @@
 # example1
 
-Hi Pablo, sure! I'll review the new tab (10) in the ARGES_COMMONS.xlsx file and work on integrating it into the dashboard.
+Hi Shinobu, sure! I'll take a look at the UNIFI data next week and check whether the segment-wise CMES data is available in Med.AI, similar to what you found for QUASAR.
 
-I'm also planning to add a section with some descriptive analyses and visualizations based on the video availability assessment we performed, so we can explore the results directly in the dashboard.
+I'll let you know once I locate the corresponding files or have more information about their availability.
 
-I think this could be useful for tracking video coverage across studies, patients, and visits. Let me know what you think!
+Have a great weekend too!
