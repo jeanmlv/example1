@@ -1,11 +1,7 @@
 # example1
 
-Hi Basudeb,
+Hi Pablo, sure! I'll review the new tab (10) in the ARGES_COMMONS.xlsx file and work on integrating it into the dashboard.
 
-Yes, the Gap Analysis files for the Priority 1 studies are available on SharePoint, including the latest mapping coverage updates.
+I'm also planning to add a section with some descriptive analyses and visualizations based on the video availability assessment we performed, so we can explore the results directly in the dashboard.
 
-Thanks for following up on VEGA and ASTRO.
-
-Regarding DUET-UC, please go ahead with the follow-up with Shuixin. I also agree that we should reach out to Raju to align on the next steps, following the same approach we used for STARDUST.
-
-I'll continue reviewing the pending variables and updating the Gap Analysis as we make progress.
+I think this could be useful for tracking video coverage across studies, patients, and visits. Let me know what you think!
