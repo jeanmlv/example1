@@ -1,7 +1,11 @@
 # example1
 
-Hi Shinobu, sure! I'll take a look at the UNIFI data next week and check whether the segment-wise CMES data is available in Med.AI, similar to what you found for QUASAR.
+**Overall Status:** In Progress (76% variable mapping analysis completed) – WK48
 
-I'll let you know once I locate the corresponding files or have more information about their availability.
+**Current Activity:**
+- Oct 23 – Received Lynn Rosa's gap analysis assessment from Basudeb, including responses to the outstanding variables marked as "N" in the gap analysis tracker.
+- Oct 23 – Lynn Rosa also shared the DUET-UC aCRF via SPACE Share to support further variable verification.
 
-Have a great weekend too!
+**Next Steps:**
+- Review Lynn Rosa's feedback and update the variable mapping status accordingly.
+- Verify the remaining variables against the aCRF and identify any additional data sources or datasets required.
