@@ -1,62 +1,11 @@
 # example1
 
+Hi Basudeb,
 
-import fitz
-from pathlib import Path
+I've reviewed Lynn's feedback on the DUET UC Gap Analysis and added my comments directly to the spreadsheet, addressing some of her questions and providing additional clarifications.
 
-# Arquivo original
-input_pdf = Path.home() / "Downloads" / "acrf.pdf"
+I also highlighted a few points that still require confirmation, particularly regarding the availability of equivalent parameters in the ADaM datasets, since our ARD pipeline currently relies on ADaM data.
 
-# Arquivo comprimido
-output_pdf = input_pdf.with_name("acrf_compressed.pdf")
+What do you think would be the best next step? Would it make sense to share the updated file with Lynn for another round of review so we can continue addressing the remaining gaps?
 
-TARGET_MB = 24
-
-def size_mb(path):
-    return path.stat().st_size / (1024 * 1024)
-
-with fitz.open(input_pdf) as doc:
-    # Primeira tentativa: otimização sem reduzir
-    # a resolução das imagens
-    doc.save(
-        str(output_pdf),
-        garbage=4,
-        deflate=True,
-        deflate_images=True,
-        deflate_fonts=True,
-        use_objstms=1
-    )
-
-print(f"Original: {size_mb(input_pdf):.2f} MB")
-print(f"Comprimido: {size_mb(output_pdf):.2f} MB")
-
-if size_mb(output_pdf) > TARGET_MB:
-    print("Aplicando compressão de imagens...")
-
-    with fitz.open(input_pdf) as doc:
-        doc.rewrite_images(
-            dpi_threshold=180,
-            dpi_target=150,
-            quality=75,
-            lossy=True,
-            lossless=True,
-            bitonal=True,
-            color=True,
-            gray=True
-        )
-
-        doc.save(
-            str(output_pdf),
-            garbage=4,
-            deflate=True,
-            deflate_images=True,
-            deflate_fonts=True,
-            use_objstms=1
-        )
-
-    print(f"Novo tamanho: {size_mb(output_pdf):.2f} MB")
-
-if size_mb(output_pdf) < TARGET_MB:
-    print("PDF pronto para upload no GitHub!")
-else:
-    print("Ainda acima do limite. Será necessário comprimir mais.")
+Thanks again for your support!
