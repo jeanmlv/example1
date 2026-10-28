@@ -1,11 +1,7 @@
 # example1
 
-Hi Krishna, yes, I noticed some differences in the number of patients and observations for certain variables, particularly in ANTHEM, QUASAR, JAK UC, and UNIFI.
+Yes, I noticed some differences in the number of observations and patients for certain variables. However, our ARD datasets cover more visits in some studies, which may explain part of these differences.
 
-However, some of these differences may be related to the broader visit coverage available in our ARD datasets.
+I haven't performed a patient-level comparison of the actual score values (MES, UCEIS, etc.) yet. So far, I've focused on comparing variable availability, observation counts, and visit coverage.
 
-For ASTRO, for example, the observation counts for MES and MAYO match exactly.
-
-So far, my comparison has focused on patient counts, visit coverage, and the number of non-missing observations per variable, rather than a patient-level comparison of the actual score values.
-
-I can also perform a more detailed comparison by USUBJID and VISIT to identify any discrepancies in the actual values.
+I can also check the actual values by USUBJID and VISIT to identify any discrepancies between the two datasets.
