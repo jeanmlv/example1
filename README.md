@@ -1,11 +1,13 @@
 # example1
 
-**Overall Status:** In Progress (76% variable mapping analysis completed) – WK48
+Hi Krishna and Pablo,
 
-**Current Activity:**
-- Oct 23 – Received Lynn Rosa's gap analysis assessment from Basudeb, including responses to the outstanding variables marked as "N" in the gap analysis tracker.
-- Oct 23 – Lynn Rosa also shared the DUET-UC aCRF via SPACE Share to support further variable verification.
+I've completed the comparison between Krishna's extracted scores CSV files and our current ARD datasets for the seven studies (ANTHEM, ASTRO, QUASAR, JAK UC, UNIFI, and VEGA — including the separate study tabs).
 
-**Next Steps:**
-- Review Lynn Rosa's feedback and update the variable mapping status accordingly.
-- Verify the remaining variables against the aCRF and identify any additional data sources or datasets required.
+I've attached the updated Excel comparison file with the results filled in. You can also find the **Thea.View paths to the corresponding ARD CSV files in the comments attached to the ARD filenames** in the spreadsheet.
+
+Krishna, you can review the data directly in the ARD CSV files. Alternatively, you can upload any of these CSV files to the **Variable Explorer in our ARGES Commons Dashboard (Thea Dash → Arges → Commons Dashboard)** for a more visual and interactive analysis.
+
+The dashboard allows you to explore individual variables, review observation and patient counts, and visualize score distributions overall and across visits.
+
+Let me know if you'd like me to walk you through the dashboard or if you have any questions about the comparison.
