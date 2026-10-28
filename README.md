@@ -1,13 +1,11 @@
 # example1
 
-Hi Krishna and Pablo,
+Hi Krishna, yes, I noticed some differences in the number of patients and observations for certain variables, particularly in ANTHEM, QUASAR, JAK UC, and UNIFI.
 
-I've completed the comparison between Krishna's extracted scores CSV files and our current ARD datasets for the seven studies (ANTHEM, ASTRO, QUASAR, JAK UC, UNIFI, and VEGA — including the separate study tabs).
+However, some of these differences may be related to the broader visit coverage available in our ARD datasets.
 
-I've attached the updated Excel comparison file with the results filled in. You can also find the **Thea.View paths to the corresponding ARD CSV files in the comments attached to the ARD filenames** in the spreadsheet.
+For ASTRO, for example, the observation counts for MES and MAYO match exactly.
 
-Krishna, you can review the data directly in the ARD CSV files. Alternatively, you can upload any of these CSV files to the **Variable Explorer in our ARGES Commons Dashboard (Thea Dash → Arges → Commons Dashboard)** for a more visual and interactive analysis.
+So far, my comparison has focused on patient counts, visit coverage, and the number of non-missing observations per variable, rather than a patient-level comparison of the actual score values.
 
-The dashboard allows you to explore individual variables, review observation and patient counts, and visualize score distributions overall and across visits.
-
-Let me know if you'd like me to walk you through the dashboard or if you have any questions about the comparison.
+I can also perform a more detailed comparison by USUBJID and VISIT to identify any discrepancies in the actual values.
