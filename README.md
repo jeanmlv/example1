@@ -1,9 +1,62 @@
 # example1
 
-Hi Shinobu! I checked the QUASAR clinical analysis file and confirmed that it contains the segment-wise CMES scores you mentioned.
 
-I also checked the UNIFI collection in Med.ai/Thea.View, but so far I haven't found an equivalent file containing these scores.
+import fitz
+from pathlib import Path
 
-My work is mainly focused on extracting and processing clinical data from SDTM/ADaM into ARD datasets. From what I can see, the segment-wise CMES scores appear to come from the endoscopy analysis pipeline, but I'm not sure which team is responsible for generating or publishing these outputs. Do you happen to know who handles this type of analysis?
+# Arquivo original
+input_pdf = Path.home() / "Downloads" / "acrf.pdf"
 
-In the meantime, if you're looking for any specific clinical variables, they may already be available in the UNIFI ARD datasets I've uploaded to Thea.View. Feel free to let me know which variables you need, and I'd be happy to help check their availability!
+# Arquivo comprimido
+output_pdf = input_pdf.with_name("acrf_compressed.pdf")
+
+TARGET_MB = 24
+
+def size_mb(path):
+    return path.stat().st_size / (1024 * 1024)
+
+with fitz.open(input_pdf) as doc:
+    # Primeira tentativa: otimização sem reduzir
+    # a resolução das imagens
+    doc.save(
+        str(output_pdf),
+        garbage=4,
+        deflate=True,
+        deflate_images=True,
+        deflate_fonts=True,
+        use_objstms=1
+    )
+
+print(f"Original: {size_mb(input_pdf):.2f} MB")
+print(f"Comprimido: {size_mb(output_pdf):.2f} MB")
+
+if size_mb(output_pdf) > TARGET_MB:
+    print("Aplicando compressão de imagens...")
+
+    with fitz.open(input_pdf) as doc:
+        doc.rewrite_images(
+            dpi_threshold=180,
+            dpi_target=150,
+            quality=75,
+            lossy=True,
+            lossless=True,
+            bitonal=True,
+            color=True,
+            gray=True
+        )
+
+        doc.save(
+            str(output_pdf),
+            garbage=4,
+            deflate=True,
+            deflate_images=True,
+            deflate_fonts=True,
+            use_objstms=1
+        )
+
+    print(f"Novo tamanho: {size_mb(output_pdf):.2f} MB")
+
+if size_mb(output_pdf) < TARGET_MB:
+    print("PDF pronto para upload no GitHub!")
+else:
+    print("Ainda acima do limite. Será necessário comprimir mais.")
