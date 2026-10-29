@@ -1,11 +1,24 @@
 # example1
 
-Hi Eric, thanks for implementing this! This is a great improvement for the ARGES Commons dashboard.
+Hi Jayron,
 
-Since the clinical data inventory is continuously updated as we receive new information from the team, pulling the workbook directly from SharePoint will make the update process much easier.
+Thanks for your response.
 
-I'll test the SharePoint refresh functionality and verify that the latest workbook changes are reflected correctly in the dashboard.
+I currently have access to the STARDUST study (CNTO1275CRD3005) through Med.ai Access Manager, under the **Med.ai-ClinicalTrials – CNTO1275CRD3005 (keycoded)** project.
 
-Just to confirm, will the SharePoint refresh work for all authorized users, or does each user need to configure their own Microsoft Graph API credentials?
+The S3 location displayed in Med.ai is:
 
-Thanks again!
+`s3://med-ai-lake/janssen/cnto1275crd3005_fbd_fnl/`
+
+This is the type of S3 location I normally use to import clinical datasets from Med.ai into Domino, and I've already performed this process for other studies.
+
+However, I'm not sure whether the STARDUST ADaM datasets and associated metadata are already available at this location.
+
+Could you please confirm whether this is the correct location to access the ADaM data, or if a separate data request or additional procedure is required to make the metadata available?
+
+I've attached a screenshot of the Med.ai Access Manager for reference.
+
+Thanks for your help!
+
+Best regards,
+Jean
