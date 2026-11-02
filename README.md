@@ -1,3 +1,12 @@
 # example1
 
-python .\02_generate_video_reports_fixed.py --input "video_inventory_output_anthem/all_video_inventory.csv" --output-dir "video_reports_output_anthem"
+raw = raw[[
+    'study',
+    'visit',
+    'visit_type',
+    'unique_patients_at_visit',
+    'file_items',
+    'technical_recordings_est',
+    'cumulative_unique_patients',
+    'complete_longitudinal_patients'
+]]
