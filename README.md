@@ -1,13 +1,10 @@
 # example1
 
-Remove-Item Env:THEA_TOKEN -ErrorAction SilentlyContinue
+processed = processed.reset_index(drop=True)
 
-$secureKey = Read-Host "Paste THEA API Key" -AsSecureString
-$env:THEA_API_KEY = [System.Net.NetworkCredential]::new("", $secureKey).Password.Trim()
-Remove-Variable secureKey
+print("RAW columns:", raw.columns.tolist())
+print("PROCESSED columns:", processed.columns.tolist())
 
-python .\00_test_thea_auth.py
+python .\02_generate_video_reports.py --input "video_inventory_output_power/all_video_inventory.csv" --output-dir "video_reports_output_power"
 
-python .\01_extract_video_inventory_multistudy.py --study POWER --folder-prefix IMM-Endoscopy --mode test --max-folders 30 --output-dir "video_inventory_output_power"
-
-python .\01_extract_video_inventory_multistudy.py --study POWER --folder-prefix IMM-Endoscopy --mode full --output-dir "video_inventory_output_power"
+python -c "import pandas as pd; d=pd.read_csv('video_inventory_output_power/all_video_inventory.csv',dtype=str).fillna(''); print(d.groupby('data_type').agg(video_files=('filename','size'),unique_patients=('patient_id','nunique')).to_string()); print(d[['data_type','site','patient_id','visit','relative_path']].head(10).to_string(index=False))"
