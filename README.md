@@ -1,12 +1,9 @@
 # example1
 
-raw = raw[[
-    'study',
-    'visit',
-    'visit_type',
-    'unique_patients_at_visit',
-    'file_items',
-    'technical_recordings_est',
-    'cumulative_unique_patients',
-    'complete_longitudinal_patients'
-]]
+# Preserve all generated columns without selecting nonexistent names.
+raw = raw.reset_index(drop=True)
+processed = processed.reset_index(drop=True)
+
+# Display available columns for validation.
+print("RAW columns:", raw.columns.tolist())
+print("PROCESSED columns:", processed.columns.tolist())
