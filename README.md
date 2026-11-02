@@ -1,10 +1,30 @@
 # example1
 
-processed = processed.reset_index(drop=True)
+summary = pd.DataFrame(studies)
+visits = pd.DataFrame(visit_rows)
 
-print("RAW columns:", raw.columns.tolist())
-print("PROCESSED columns:", processed.columns.tolist())
+metric_names = [
+    'unique_patients_at_visit',
+    'file_items',
+    'technical_recordings_est',
+    'cumulative_unique_patients',
+    'complete_longitudinal_patients'
+]
 
-python .\02_generate_video_reports.py --input "video_inventory_output_power/all_video_inventory.csv" --output-dir "video_reports_output_power"
+def prepare_sheet(data_type):
+    part = visits.loc[visits['data_type'] == data_type].copy()
 
-python -c "import pandas as pd; d=pd.read_csv('video_inventory_output_power/all_video_inventory.csv',dtype=str).fillna(''); print(d.groupby('data_type').agg(video_files=('filename','size'),unique_patients=('patient_id','nunique')).to_string()); print(d[['data_type','site','patient_id','visit','relative_path']].head(10).to_string(index=False))"
+    columns = ['study', 'visit', 'visit_type']
+
+    prefix = 'rawdata' if data_type == 'rawdata' else 'processed'
+
+    for metric in metric_names:
+        source_col = f'{prefix}_{metric}'
+        if source_col not in part.columns:
+            part[source_col] = 0 if metric in metric_names[:3] else None
+        columns.append(source_col)
+
+    return part[columns].reset_index(drop=True)
+
+raw = prepare_sheet('rawdata')
+processed = prepare_sheet('processed')
