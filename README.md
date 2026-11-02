@@ -1,3 +1,11 @@
 # example1
 
-python .\02_generate_video_reports.py --input "video_inventory_output_anthem/all_video_inventory_corrected.csv" --output-dir "video_reports_output_anthem" --scheduled-visits "Screening,Week 12,Week 28"
+Remove-Item Env:THEA_TOKEN -ErrorAction SilentlyContinue
+
+$secureKey = Read-Host "Paste THEA API Key" -AsSecureString
+$env:THEA_API_KEY = [System.Net.NetworkCredential]::new("", $secureKey).Password.Trim()
+Remove-Variable secureKey
+
+python .\00_test_thea_auth.py
+
+python .\01_extract_video_inventory_multistudy.py --study POWER --folder-prefix IMM_Endoscopy --mode test --max-folders 30 --output-dir "video_inventory_output_power"
