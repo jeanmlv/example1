@@ -1,7 +1,7 @@
 # example1
 
-if ($env:THEA_API_KEY) {
-    Write-Host "THEA_API_KEY configured"
-} else {
-    Write-Host "THEA_API_KEY missing"
-}
+response = session.post(
+    f"{API_URL.rstrip('/')}/api_key/token",
+    params={"key": api_key},
+    timeout=(15, 60),
+)
