@@ -2,14 +2,14 @@
 
 Hi Basudeb,
 
-I've updated our tracking spreadsheet with the latest comments and findings for **VEGA and ASTRO**, incorporating the PL's feedback and the additional variable mapping review.
+Regarding ASTRO and VEGA, I've incorporated the PL's feedback into the gap analysis and flagged the remaining variables that require further verification.
 
-The status updates for **STARDUST and DUET UC** have also been updated to reflect the latest progress and pending items.
+For DUET UC, we're still awaiting feedback on our responses to Lynn's comments.
 
-Please find the updated spreadsheets attached.
+For STARDUST, we're still waiting for Jayron to confirm that the ADaM metadata has been uploaded to Med.ai so we can proceed with the remaining variable mapping.
 
-Would you like me to upload these files to the **ORBIT SharePoint** for the team, or would you prefer to take them from here and update SharePoint yourself?
+Other than these pending items, I don't have any additional follow-ups with the business at the moment.
 
-Thanks!
+Please let me know if there's anything else you'd like me to follow up on.
  
 
