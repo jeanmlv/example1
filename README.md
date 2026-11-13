@@ -1,11 +1,8 @@
 # example1
 
-approved_file = paste0(
-  "/mnt/CNTO1959UCO2002_VEGA_load2388_mapping/",
-  "07_mapping_review_template_VEGA_REVISED.csv"
-),
+import pandas as pd
+import streamlit as st
+from src.ui import show_table,donut_from_status
 
-<img width="714" height="796" alt="image" src="https://github.com/user-attachments/assets/bb238cef-bdd3-4d5a-8422-0fbf96d2533b" />
-
-<img width="906" height="768" alt="image" src="https://github.com/user-attachments/assets/a11c6f54-7aa4-4130-8ed6-93761bcac2b9" />
-
+def render(filtered,data):
+    st.header('Data Analysis'); st.markdown('<div class="section-note">Analysis registry linking ARD inputs, SAP references, code versions, owners, and outputs.</div>',unsafe_allow_html=True); df=filtered.get('07_DATA_ANALYSIS',pd.DataFrame()); c1,c2,c3=st.columns(3); c1.metric('Analyses',len(df)); c2.metric('Studies',df['Study ID'].nunique() if 'Study ID' in df else 0); c3.metric('Owners',df['Analysis Owner'].nunique() if 'Analysis Owner' in df else 0); donut_from_status(df,'Status','Analysis status'); show_table(df,key='analysis_table',link_cols=['Dataset Location','SAP Location','Reports Location'])
