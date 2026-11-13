@@ -2,21 +2,36 @@
 
 ############# arges commons dashboard.py
 
+
+import os
 import re
+import sys
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-from pathlib import Path
-import sys
+
+
+# =========================================================
+# PATH CONFIGURATION
+# =========================================================
 
 COMMONS_DIRECTORY = Path(__file__).resolve().parent
+
 if str(COMMONS_DIRECTORY) not in sys.path:
     sys.path.insert(0, str(COMMONS_DIRECTORY))
 
+LOCAL_WORKBOOK = COMMONS_DIRECTORY / "ARGES_COMMONS.xlsx"
+
+
+# =========================================================
+# PROJECT IMPORTS
+# =========================================================
+
 from src.config import REQUIRED_SHEETS, PAGES, JNJ_RED
 from src.data_loader import filter_by_study
-from src.fetch_arges_commons_workbook import load_workbook
 from src.filters import clean_text_values
+
 from views import (
     overview,
     studies_assets,
@@ -27,64 +42,289 @@ from views import (
     variable_definitions,
     data_analysis,
     external_data,
+    arges_models,
+    deployments,
 )
 
+
+# =========================================================
+# DATA SOURCE CONFIGURATION
+# =========================================================
+
+# Default: SharePoint (Domino / production)
+#
+# For local development:
+# PowerShell:
+# $env:ARGES_DATA_SOURCE = "local"
+#
+# This avoids requiring SharePoint credentials
+# when testing the dashboard locally.
+
+DATA_SOURCE = os.getenv(
+    "ARGES_DATA_SOURCE",
+    "sharepoint",
+).strip().lower()
+
+if DATA_SOURCE not in {"local", "sharepoint"}:
+    st.error(
+        "Invalid ARGES_DATA_SOURCE. "
+        "Expected 'local' or 'sharepoint'."
+    )
+    st.stop()
+
+
+# =========================================================
+# WORKBOOK LOADING
+# =========================================================
 
 @st.cache_data(
-    ttl=3600, show_spinner="Loading ARGES Commons workbook from SharePoint..."
+    ttl=3600,
+    show_spinner="Loading ARGES Commons workbook...",
 )
-def load_data() -> dict[str, pd.DataFrame]:
-    """Fetch the workbook from SharePoint and normalize column names."""
+def load_data(
+    source: str,
+    local_path: str,
+    local_mtime: int = 0,
+) -> dict[str, pd.DataFrame]:
+    """
+    Load ARGES Commons from the configured data source.
+
+    Local:
+        Read the Excel workbook from the dashboard directory.
+
+    SharePoint:
+        Retrieve the shared workbook using Microsoft Graph.
+
+    local_mtime:
+        Included in the cache key so changes to the local
+        workbook invalidate cached data.
+    """
+
+    if source == "local":
+
+        workbook_path = Path(local_path)
+
+        if not workbook_path.is_file():
+            raise FileNotFoundError(
+                f"Local workbook not found: {workbook_path}"
+            )
+
+        frames = pd.read_excel(
+            workbook_path,
+            sheet_name=None,
+            engine="openpyxl",
+        )
+
+    elif source == "sharepoint":
+
+        # Import only when SharePoint is required.
+        from src.fetch_arges_commons_workbook import (
+            load_workbook,
+        )
+
+        frames = load_workbook(verbose=False)
+
+    else:
+        raise ValueError(f"Unsupported data source: {source}")
+
+    # Normalize sheet names and column names.
     out = {}
-    for name, df in load_workbook(verbose=False).items():
+
+    for name, df in frames.items():
+
         df = df.copy()
+
         df.columns = [
-            re.sub(r"\s+", " ", str(c).replace("\n", " ")).strip() for c in df.columns
+            re.sub(
+                r"\s+",
+                " ",
+                str(c).replace("\n", " "),
+            ).strip()
+            for c in df.columns
         ]
-        out[name] = df.dropna(how="all")
+
+        out[str(name).strip()] = df.dropna(how="all")
+
     return out
 
 
-def render_filters(studies: pd.DataFrame) -> tuple[pd.DataFrame, set[str]]:
-    """Render main-page study filters and return the matching study IDs."""
+# =========================================================
+# STUDY FILTERS
+# =========================================================
+
+def render_filters(
+    studies: pd.DataFrame,
+) -> tuple[pd.DataFrame, set[str]]:
+    """
+    Render main-page study filters.
+
+    Filters are applied sequentially so available options
+    reflect previous selections.
+    """
+
     st.subheader("Filters")
+
     eligible = studies.copy()
-    columns = st.columns(4)
+
     filter_specs = (
         ("Study", "Study Name"),
+        ("Disease", "Disease"),
         ("Phase", "Phase"),
         ("Trial status", "Trial Status"),
         ("Compound", "Compound"),
     )
 
-    for column, (label, field) in zip(columns, filter_specs):
+    columns = st.columns(len(filter_specs))
+
+    for column, (label, field) in zip(
+        columns,
+        filter_specs,
+    ):
+
+        options = clean_text_values(
+            eligible.get(
+                field,
+                pd.Series(dtype=str),
+            )
+        )
+
+        widget_key = (
+            "arges_commons_filter_"
+            + field.lower().replace(" ", "_")
+        )
+
+        # Remove selections that are no longer available
+        # after applying an upstream filter.
+        previous = st.session_state.get(widget_key, [])
+
+        valid_previous = [
+            value
+            for value in previous
+            if value in options
+        ]
+
+        if previous != valid_previous:
+            st.session_state[widget_key] = valid_previous
+
         with column:
+
             selected = st.multiselect(
                 label,
-                clean_text_values(eligible.get(field, pd.Series(dtype=str))),
+                options,
+                key=widget_key,
             )
-        if selected and field in eligible:
-            eligible = eligible[eligible[field].astype(str).isin(selected)]
 
-    selected_ids = set(eligible["Study ID"].dropna().astype(str))
-    st.caption(
-        f"{len(selected_ids)} of {studies['Study ID'].nunique()} studies selected"
+        if selected and field in eligible.columns:
+
+            eligible = eligible[
+                eligible[field]
+                .astype(str)
+                .str.strip()
+                .isin(selected)
+            ].copy()
+
+    selected_ids = set(
+        eligible["Study ID"]
+        .dropna()
+        .astype(str)
+        .str.strip()
     )
-    st.button("🔄 Reload workbook from SharePoint", on_click=load_data.clear)
+
+    total_studies = (
+        studies["Study ID"]
+        .dropna()
+        .astype(str)
+        .str.strip()
+        .nunique()
+    )
+
+    st.caption(
+        f"{len(selected_ids)} of "
+        f"{total_studies} studies selected"
+    )
+
+    # Selected study names.
+    with st.expander(
+        f"View selected studies ({len(selected_ids)})",
+        expanded=False,
+    ):
+
+        if eligible.empty:
+
+            st.info(
+                "No studies match the current filters."
+            )
+
+        else:
+
+            display_cols = [
+                col
+                for col in [
+                    "Study Name",
+                    "Study ID",
+                    "Disease",
+                    "Phase",
+                ]
+                if col in eligible.columns
+            ]
+
+            selected_studies = (
+                eligible[display_cols]
+                .drop_duplicates()
+                .copy()
+            )
+
+            if "Study Name" in selected_studies.columns:
+
+                selected_studies = (
+                    selected_studies.sort_values(
+                        "Study Name"
+                    )
+                )
+
+            st.dataframe(
+                selected_studies,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+    # Workbook refresh.
+    if DATA_SOURCE == "sharepoint":
+
+        st.button(
+            "🔄 Reload workbook from SharePoint",
+            on_click=load_data.clear,
+            key="arges_reload_sharepoint",
+        )
+
+    else:
+
+        st.button(
+            "🔄 Reload local workbook",
+            on_click=load_data.clear,
+            key="arges_reload_local",
+        )
+
+        st.caption(
+            "Local development mode — "
+            "using the local ARGES_COMMONS.xlsx."
+        )
+
     st.markdown("---")
 
     return eligible, selected_ids
 
 
+# =========================================================
+# THEME-AWARE STYLING
+# =========================================================
+
 st.markdown(
     f"""
     <style>
-    /* =========================================================
-        ARGES Commons — theme-aware styling
-        Works with both Streamlit Light and Dark modes
-        ========================================================= */
 
     /* Main application */
+
     .stApp {{
         background-color: var(--background-color);
         color: var(--text-color);
@@ -97,6 +337,7 @@ st.markdown(
     }}
 
     /* Typography */
+
     h1, h2, h3 {{
         letter-spacing: -0.02em;
         color: var(--text-color);
@@ -106,9 +347,7 @@ st.markdown(
         font-size: 2rem !important;
     }}
 
-    /* =========================================================
-        KPI cards
-        ========================================================= */
+    /* KPI cards */
 
     div[data-testid="stMetric"] {{
         background-color: var(--secondary-background-color);
@@ -135,17 +374,7 @@ st.markdown(
         color: var(--text-color) !important;
     }}
 
-    /* =========================================================
-        ARGES branding / hero
-        ========================================================= */
-
-    .eyebrow {{
-        font-size: 12px;
-        letter-spacing: .12em;
-        text-transform: uppercase;
-        color: {JNJ_RED};
-        font-weight: 800;
-    }}
+    /* ARGES branding */
 
     .hero {{
         padding: 22px 24px;
@@ -170,9 +399,7 @@ st.markdown(
         font-size: 13px;
     }}
 
-    /* =========================================================
-        Tables / controls
-        ========================================================= */
+    /* Tables and controls */
 
     [data-testid="stDataFrame"] {{
         border: 1px solid rgba(128, 128, 128, 0.25);
@@ -189,34 +416,117 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+# =========================================================
+# LOAD WORKBOOK
+# =========================================================
+
 try:
-    data = load_data()
-except (Exception, SystemExit) as exc:  # fetch helper raises SystemExit on Graph errors
-    st.error(f"The workbook could not be loaded: {exc}")
+
+    local_mtime = (
+        LOCAL_WORKBOOK.stat().st_mtime_ns
+        if DATA_SOURCE == "local"
+        and LOCAL_WORKBOOK.is_file()
+        else 0
+    )
+
+    data = load_data(
+        DATA_SOURCE,
+        str(LOCAL_WORKBOOK),
+        local_mtime,
+    )
+
+except (Exception, SystemExit) as exc:
+
+    # The SharePoint helper may raise SystemExit
+    # when credentials or Graph access are unavailable.
+
+    st.error(
+        f"The workbook could not be loaded "
+        f"from {DATA_SOURCE}: {exc}"
+    )
+
+    st.button(
+        "Retry workbook loading",
+        on_click=load_data.clear,
+        key="arges_retry_loading",
+    )
+
     st.stop()
-missing = [s for s in REQUIRED_SHEETS if s not in data]
+
+
+# =========================================================
+# WORKBOOK VALIDATION
+# =========================================================
+
+missing = [
+    sheet
+    for sheet in REQUIRED_SHEETS
+    if sheet not in data
+]
+
 if missing:
-    st.warning("Some expected sheets are not present: " + ", ".join(missing))
 
-studies = data.get("01_STUDIES", pd.DataFrame()).copy()
+    st.warning(
+        "Some expected sheets are not present: "
+        + ", ".join(missing)
+    )
+
+studies = data.get(
+    "01_STUDIES",
+    pd.DataFrame(),
+).copy()
+
 if studies.empty or "Study ID" not in studies.columns:
-    st.error("Sheet 01_STUDIES with a Study ID column is required.")
+
+    st.error(
+        "Sheet 01_STUDIES with a Study ID column "
+        "is required."
+    )
+
     st.stop()
 
-# render_header()
+
+# =========================================================
+# HEADER
+# =========================================================
+
 st.caption(
-    "A study-centric view from source assets and processing through data splits, analysis-ready datasets, variable traceability, analyses, and external data."
+    "A study-centric view from source assets and "
+    "processing through data splits, analysis-ready "
+    "datasets, variable traceability, analyses, "
+    "and external data."
 )
+
+
+# =========================================================
+# GLOBAL FILTERS
+# =========================================================
 
 eligible, selected_ids = render_filters(studies)
-page = (
-    st.segmented_control(
-        "Navigation", PAGES, default="Overview", label_visibility="collapsed"
-    )
-    or "Overview"
-)
-filtered = {name: filter_by_study(df, selected_ids) for name, df in data.items()}
+
+filtered = {
+    name: filter_by_study(df, selected_ids)
+    for name, df in data.items()
+}
+
+# Prevent empty study selections from accidentally
+# restoring the complete inventory in study-linked tables.
+if not selected_ids:
+
+    for name, df in filtered.items():
+
+        if "Study ID" in df.columns:
+
+            filtered[name] = df.iloc[0:0].copy()
+
 filtered["01_STUDIES"] = eligible.copy()
+
+
+# =========================================================
+# PAGE ROUTES
+# =========================================================
+
 ROUTES = {
     "Overview": overview.render,
     "Studies & Assets": studies_assets.render,
@@ -227,127 +537,71 @@ ROUTES = {
     "Variable Definitions": variable_definitions.render,
     "Data Analysis": data_analysis.render,
     "External Data": external_data.render,
+    "ARGES Models": arges_models.render,
+    "Deployments": deployments.render,
 }
-ROUTES[page](filtered, data)
+
+# Preserve the configured navigation order.
+# Include new routes if they are not yet listed in PAGES.
+
+navigation_pages = [
+    page_name
+    for page_name in PAGES
+    if page_name in ROUTES
+]
+
+for page_name in ROUTES:
+
+    if page_name not in navigation_pages:
+
+        navigation_pages.append(page_name)
+
+
+# =========================================================
+# NAVIGATION
+# =========================================================
+
+page = (
+    st.segmented_control(
+        "Navigation",
+        navigation_pages,
+        default="Overview",
+        label_visibility="collapsed",
+        key="arges_commons_navigation",
+    )
+    or "Overview"
+)
+
+
+# =========================================================
+# RENDER SELECTED PAGE
+# =========================================================
+
+if page == "Deployments":
+
+    # Persistent writes remain disabled until the
+    # SharePoint write integration is approved/configured.
+    #
+    # Do not pass a local workbook path as a SharePoint
+    # write target.
+
+    deployments.render(filtered, data)
+
+else:
+
+    ROUTES[page](filtered, data)
+
+
+# =========================================================
+# FOOTER
+# =========================================================
+
 st.markdown("---")
+
 st.caption(
-    "ARGES Commons • Data shown reflects the selected workbook and active filters. Validate source metadata before operational or clinical use."
+    "ARGES Commons • Data shown reflects the selected "
+    "workbook and active filters. Validate source metadata "
+    "before operational or clinical use."
 )
-
-
-############################# fetch arges commons workbook.py
-
-"""Pull Arges Commons workbook in SharePoint via Microsoft Graph.
-
-Auth: app-only (client credentials) using CLIENT_ID, CLIENT_SECRET, TENANT_ID
-from .env. The app registration needs Sites.Read.All (or Sites.Selected with
-access granted to the site) as an *application* permission with admin consent.
-
-Usage:
-    from scripts.fetch_arges_commons_workbook import load_workbook
-    sheets = load_workbook()          # {sheet_name: DataFrame}
-    df = sheets["Sheet1"]
-
-    python scripts/fetch_arges_commons_workbook.py [--sheet NAME]
-"""
-
-import argparse
-import base64
-import io
-import os
-import time
-
-import pandas as pd
-import requests
-from dotenv import load_dotenv
-
-GRAPH = "https://graph.microsoft.com/v1.0"
-FILE_URL = (
-    "https://jnj.sharepoint.com/:x:/r/teams/ComputerVisionProductsJRDDataScience-M0XX-NovelUCScoreEndo"
-    "/_layouts/15/Doc.aspx?sourcedoc=%7BD4D11FBC-A9FD-4B38-8180-D6B55BD25CF9%7D"
-    "&file=ARGES_COMMONS.xlsx&action=default&mobileredirect=true&wdwpf=doclib-c"
-)
-
-
-def get_token() -> str:
-    load_dotenv()
-    tenant, cid, secret = (
-        os.environ.get(k) for k in ("TENANT_ID", "CLIENT_ID", "CLIENT_SECRET")
-    )
-    if not all((tenant, cid, secret)):
-        raise SystemExit("TENANT_ID, CLIENT_ID and CLIENT_SECRET must be set in .env")
-    r = requests.post(
-        f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token",
-        data={
-            "client_id": cid,
-            "client_secret": secret,
-            "scope": "https://graph.microsoft.com/.default",
-            "grant_type": "client_credentials",
-        },
-        timeout=30,
-    )
-    r.raise_for_status()
-    return r.json()["access_token"]
-
-
-def get(session: requests.Session, url: str, **kw) -> requests.Response:
-    r = session.get(url, timeout=60, **kw)
-    if not r.ok:
-        raise SystemExit(f"Graph error {r.status_code} for {url}\n{r.text}")
-    return r
-
-
-def find_item(session: requests.Session) -> tuple[str, str]:
-    """Resolve the workbook directly from its sharing URL (no searching)."""
-    token = base64.urlsafe_b64encode(FILE_URL.encode()).decode().rstrip("=")
-    item = get(
-        session, f"{GRAPH}/shares/u!{token}/driveItem?$select=id,parentReference"
-    ).json()
-    return item["parentReference"]["driveId"], item["id"]
-
-
-def load_workbook(
-    sheet: str | None = None, verbose: bool = True
-) -> dict[str, pd.DataFrame]:
-    """Return the ARGES_COMMONS workbook as {sheet_name: DataFrame}.
-
-    Downloads the whole file into memory (nothing saved to disk) and parses it.
-    sheet: load only this sheet (still returned as a one-item dict).
-    """
-    t0 = time.time()
-
-    def log(msg):
-        if verbose:
-            print(f"[{time.time() - t0:6.1f}s] {msg}", flush=True)
-
-    log("Requesting access token...")
-    session = requests.Session()
-    session.headers["Authorization"] = f"Bearer {get_token()}"
-    drive_id, item_id = find_item(session)
-    log(f"Found workbook (item {item_id}).")
-
-    log("Downloading workbook...")
-    content = get(session, f"{GRAPH}/drives/{drive_id}/items/{item_id}/content").content
-    log(f"Downloaded {len(content) / 1e6:.1f} MB. Parsing...")
-    frames = pd.read_excel(io.BytesIO(content), sheet_name=sheet or None)
-    if sheet:
-        frames = {sheet: frames}
-    # for name, df in frames.items():
-    #     log(f"  {name!r}: {df.shape[0]} rows x {df.shape[1]} cols")
-    return frames
-
-
-def main():
-    p = argparse.ArgumentParser()
-    p.add_argument("--sheet", help="Sheet name (default: all)")
-    args = p.parse_args()
-
-    for name, df in load_workbook(args.sheet).items():
-        print(f"\n=== {name}: {df.shape[0]} rows x {df.shape[1]} cols ===")
-        print(df.head())
-
-
-if __name__ == "__main__":
-    main()
 
 
