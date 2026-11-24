@@ -1,309 +1,652 @@
 # example1
 
-Preserves all distinct cell values joined by ' | ', using input file order.
-Output: merged CSV, optional XLSX, and QA reports. Uses SQLite on disk.
-"""
-from __future__ import annotations
+import re
 
-import csv
-import hashlib
-import os
-import shutil
-import sqlite3
-import time
-from datetime import date, datetime
-from pathlib import Path
-from openpyxl import Workbook, load_workbook
+import pandas as pd
+import streamlit as st
+import plotly.graph_objects as go
 
-# -------------------- CONFIGURATION --------------------
-INPUT_FOLDER = Path(r"C:\Users\JMende95\OneDrive - JNJ\Desktop\ard_data\csv")
-OUTPUT_FOLDER = INPUT_FOLDER / "merged_v4"
-FILES_TO_MERGE = [
-    "78934804UCO2001_duet_uc_wk96_ard_20261119.csv",
-    "78934804UCO2001_duet_uc_wk48_ard_20260617.csv",
-]
-KEYS = ("USUBJID", "AVISIT", "AVISITN", "AVISIT_ORDER")
-SEPARATOR = " | "
-BATCH_ROWS = 100
-GENERATE_XLSX = True
-KEEP_SQLITE = False
-MIN_FREE_GB = 8
-# -------------------------------------------------------
+from src.ui import show_table
 
 
-def normalized(value):
-    if value is None:
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+ASSETS = {
+    "Videos": {"status_cols": ["Videos"], "location_col": "Videos Location"},
+    "SDTM/ADaM": {
+        "status_cols": [
+            "SDTM/ADaM (Domino)",
+            "SDTM/ADaM (Med.ai)",
+        ],
+        "location_col": "SDTM/ADaM Location",
+    },
+    "ARD": {
+        "status_cols": [
+            "Analysis-Ready-Dataset (ARD)",
+        ],
+        "location_col": "ARD Location",
+    },
+    "Annotations": {
+        "status_cols": [
+            "Annotations",
+        ],
+        "location_col": "Annotations Location",
+    },
+    "Clinical GT": {
+        "status_cols": [
+            "Clinical GT",
+        ],
+        "location_col": "Clinical GT Location",
+    },
+    "Feature Vectors": {
+        "status_cols": [
+            "Feature Vectors",
+        ],
+        "location_col": "Feature Vectors Location",
+    },
+    "IUS": {"status_cols": ["IUS"], "location_col": "IUS Location"},
+}
+
+
+# =============================================================================
+# HELPERS
+# =============================================================================
+
+def clean_value(value):
+    """Return a clean string representation of a cell value."""
+
+    if pd.isna(value):
         return ""
-    if isinstance(value, datetime):
-        return value.isoformat(sep=" ")
-    if isinstance(value, date):
-        return value.isoformat()
-    if isinstance(value, float):
-        if value != value:
-            return ""
-        return str(int(value)) if value.is_integer() else str(value)
-    return str(value).strip()
+
+    value = str(value).strip()
+
+    if value.lower() in {"nan", "none", "null"}:
+        return ""
+
+    return value
 
 
-def distinct_merge(old, new):
-    """V3-style first-seen unique values; preserves original concatenations."""
-    if not old:
-        return new, False
-    if not new or old == new:
-        return old, False
-    parts = [p.strip() for p in old.split(SEPARATOR) if p.strip()]
-    changed = False
-    for p in new.split(SEPARATOR):
-        p = p.strip()
-        if p and p not in parts:
-            parts.append(p)
-            changed = True
-    return SEPARATOR.join(parts), changed
+def split_locations(value):
+    """
+    Split a location cell into individual locations.
+
+    Supports:
+    - one location per line
+    - multiple locations separated by semicolon
+    """
+
+    value = clean_value(value)
+
+    if not value:
+        return []
+
+    parts = re.split(r"[\n;]+", value)
+
+    locations = []
+
+    for part in parts:
+        part = part.strip()
+
+        if part and part not in locations:
+            locations.append(part)
+
+    return locations
 
 
-def row_id(keys, filename, row_number):
-    complete = all(keys)
-    payload = ["COMPLETE", *keys] if complete else ["INCOMPLETE", filename, str(row_number)]
-    return hashlib.sha256("\x1f".join(payload).encode("utf-8")).hexdigest(), complete
+def get_locations(df, column):
+    """Collect unique locations from a location column."""
+
+    if column not in df.columns:
+        return []
+
+    locations = []
+
+    for value in df[column]:
+        for location in split_locations(value):
+            if location not in locations:
+                locations.append(location)
+
+    return locations
 
 
-def setup_db(db):
-    db.execute("PRAGMA journal_mode=DELETE")
-    db.execute("PRAGMA synchronous=NORMAL")
-    db.execute("PRAGMA cache_size=-65536")  # 64 MiB cache
-    db.execute("PRAGMA temp_store=FILE")
-    db.execute("CREATE TABLE keys (id TEXT PRIMARY KEY, subj TEXT, visit TEXT, visitn TEXT, visit_order TEXT, first_seq INTEGER)")
-    db.execute("CREATE TABLE cells (id TEXT, col TEXT, val TEXT, PRIMARY KEY(id,col)) WITHOUT ROWID")
-    db.execute("CREATE TABLE source_visits (col TEXT, visit TEXT, PRIMARY KEY(col,visit)) WITHOUT ROWID")
-    db.execute("CREATE TABLE seen (file_no INTEGER, id TEXT, PRIMARY KEY(file_no,id)) WITHOUT ROWID")
-    db.execute("CREATE TABLE conflicts (file TEXT, subj TEXT, visit TEXT, visitn TEXT, visit_order TEXT, col TEXT, previous TEXT, incoming TEXT, merged TEXT)")
-    db.execute("CREATE TABLE duplicate_keys (file TEXT, subj TEXT, visit TEXT, visitn TEXT, visit_order TEXT, row_number INTEGER)")
-    db.commit()
+def availability_status(value):
+    """Normalize availability values."""
+
+    value = clean_value(value).lower()
+
+    if value in {
+        "available",
+        "yes",
+        "y",
+        "true",
+        "1",
+    }:
+        return "Available"
+
+    if value in {
+        "pending",
+        "in progress",
+        "in-progress",
+    }:
+        return "Pending"
+
+    if value in {
+        "missing",
+        "no",
+        "n",
+        "false",
+        "0",
+        "not available",
+    }:
+        return "Missing"
+
+    if not value:
+        return "Not specified"
+
+    return value.title()
 
 
-def iter_sheet(path, name):
-    wb = load_workbook(path, read_only=True, data_only=True)
-    try:
-        if name not in wb.sheetnames:
-            raise ValueError(f"{path.name}: missing worksheet {name}")
-        ws = wb[name]
-        it = ws.iter_rows(values_only=True)
-        try:
-            headers = [normalized(v) for v in next(it)]
-        except StopIteration:
-            raise ValueError(f"{path.name}: empty worksheet {name}")
-        if len(set(headers)) != len(headers) or not all(headers):
-            raise ValueError(f"{path.name}: duplicate/blank column headers")
-        yield headers, it
-    finally:
-        wb.close()
+def get_asset_status(df, columns):
+    """Determine the overall status for an asset."""
 
+    statuses = []
 
-def import_ard(db, path, file_no, all_columns, seq_start):
-    wb = load_workbook(path, read_only=True, data_only=True)
-    try:
-        if "ARD" not in wb.sheetnames:
-            raise ValueError(f"{path.name}: sheet 'ARD' not found")
-        iterator = wb["ARD"].iter_rows(values_only=True)
-        headers = [normalized(v) for v in next(iterator)]
-        if len(set(headers)) != len(headers) or not all(headers):
-            raise ValueError(f"{path.name}: duplicate/blank headers")
-        if not set(KEYS).issubset(headers):
-            raise ValueError(f"{path.name}: missing keys: {set(KEYS) - set(headers)}")
-        for col in headers:
-            if col not in all_columns:
-                all_columns.append(col)
-        key_indices = [headers.index(k) for k in KEYS]
-        value_indices = [(i, c) for i, c in enumerate(headers) if c not in KEYS]
-        count = dup_count = incomplete_count = conflicts_count = 0
-        for row_number, row in enumerate(iterator, start=2):
-            if not row or all(v is None or v == "" for v in row):
-                continue
-            keyvals = [normalized(row[i]) if i < len(row) else "" for i in key_indices]
-            rid, complete = row_id(keyvals, path.name, row_number)
-            if not complete:
-                incomplete_count += 1
-            seq_start += 1
-            db.execute("INSERT OR IGNORE INTO keys VALUES (?,?,?,?,?,?)", (rid, *keyvals, seq_start))
-            if complete:
-                found = db.execute("SELECT 1 FROM seen WHERE file_no=? AND id=?", (file_no, rid)).fetchone()
-                if found:
-                    dup_count += 1
-                    db.execute("INSERT INTO duplicate_keys VALUES (?,?,?,?,?,?)", (path.name, *keyvals, row_number))
-                else:
-                    db.execute("INSERT INTO seen VALUES (?,?)", (file_no, rid))
-            populated = []
-            for idx, col in value_indices:
-                val = normalized(row[idx]) if idx < len(row) else ""
-                if val:
-                    populated.append((col, val))
-                    if keyvals[1]:
-                        db.execute("INSERT OR IGNORE INTO source_visits VALUES (?,?)", (col, keyvals[1]))
-            if populated:
-                existing = dict(db.execute(
-                    "SELECT col,val FROM cells WHERE id=?", (rid,)).fetchall())
-                inserts = []
-                updates = []
-                for col, val in populated:
-                    old = existing.get(col)
-                    if old is None:
-                        inserts.append((rid, col, val))
-                    else:
-                        merged, changed = distinct_merge(old, val)
-                        if changed:
-                            updates.append((merged, rid, col))
-                            db.execute("INSERT INTO conflicts VALUES (?,?,?,?,?,?,?,?,?)",
-                                       (path.name, *keyvals, col, old, val, merged))
-                            conflicts_count += 1
-                if inserts:
-                    db.executemany("INSERT INTO cells VALUES (?,?,?)", inserts)
-                if updates:
-                    db.executemany("UPDATE cells SET val=? WHERE id=? AND col=?", updates)
-            count += 1
-            if count % BATCH_ROWS == 0:
-                db.commit()
-            if count % 1000 == 0:
-                print(f"    {count:,} rows; conflicts: {conflicts_count:,}", flush=True)
-        db.commit()
-        print(f"  Finished: {count:,} rows; duplicates: {dup_count:,}; incomplete keys: {incomplete_count:,}; conflicts: {conflicts_count:,}", flush=True)
-        return seq_start, (path.name, count, len(headers), dup_count, incomplete_count, conflicts_count)
-    finally:
-        wb.close()
+    for column in columns:
 
-
-def export_merged(db, columns, folder):
-    if len(columns) > 16384:
-        raise RuntimeError(f"{len(columns):,} columns exceeds Excel limit of 16,384")
-    csv_path = folder / "QUASAR_MERGED_ARD.csv"
-    xlsx_path = folder / "QUASAR_MERGED_ARD.xlsx"
-    book = Workbook(write_only=True) if GENERATE_XLSX else None
-    sheet = book.create_sheet("ARD") if book else None
-    if sheet:
-        sheet.append(columns)
-    col_index = {name: idx for idx, name in enumerate(columns)}
-    nrows = 0
-    with csv_path.open("w", encoding="utf-8-sig", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(columns)
-        # Sort by first appearance to avoid expensive global sort.
-        keys_cursor = db.execute("SELECT id,subj,visit,visitn,visit_order FROM keys ORDER BY first_seq")
-        # SQLite cannot run another query on the same cursor; use separate cursor.
-        cells_cursor = db.cursor()
-        for rid, subj, visit, visitn, visit_order in keys_cursor:
-            output = [""] * len(columns)
-            for k, v in zip(KEYS, (subj, visit, visitn, visit_order)):
-                output[col_index[k]] = v
-            for col, val in cells_cursor.execute("SELECT col,val FROM cells WHERE id=?", (rid,)):
-                output[col_index[col]] = val
-            writer.writerow(output)
-            if sheet:
-                if nrows >= 1048575:
-                    raise RuntimeError("Excel row limit exceeded; CSV remains available")
-                sheet.append(output)
-            nrows += 1
-            if nrows % 1000 == 0:
-                print(f"  Exported {nrows:,} rows", flush=True)
-    if book:
-        print("Saving XLSX (may take a while)...", flush=True)
-        book.save(xlsx_path)
-    return nrows, csv_path, xlsx_path if book else None
-
-
-def export_reports(db, stats, folder):
-    book = Workbook(write_only=True)
-    sheet = book.create_sheet("FILE_COMPARISON")
-    sheet.append(["FILE", "INPUT_ROWS", "COLUMNS", "DUPLICATE_KEY_ROWS", "INCOMPLETE_KEY_ROWS", "CONFLICT_EVENTS"])
-    for row in stats:
-        sheet.append(row)
-    for table, sheet_name, headers in [
-        ("conflicts", "VALUE_CONFLICTS", ["INCOMING_FILE", *KEYS, "COLUMN", "PREVIOUS_VALUE", "INCOMING_VALUE", "MERGED_VALUE"]),
-        ("duplicate_keys", "DUPLICATE_KEYS", ["FILE", *KEYS, "ROW_NUMBER"]),
-    ]:
-        count = db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-        if count > 1048575:
-            path = folder / f"{sheet_name}.csv"
-            with path.open("w", encoding="utf-8-sig", newline="") as fh:
-                w = csv.writer(fh)
-                w.writerow(headers)
-                for record in db.execute(f"SELECT * FROM {table}"):
-                    w.writerow(record)
+        if column not in df.columns:
             continue
-        ws = book.create_sheet(sheet_name)
-        ws.append(headers)
-        for record in db.execute(f"SELECT * FROM {table}"):
-            ws.append(record)
-    qc = book.create_sheet("COLUMN_VISIT_QC")
-    qc.append(["COLUMN", "AVISIT", "QC_STATUS"])
-    unexpected = 0
-    sql = """SELECT DISTINCT c.col,k.visit FROM cells c JOIN keys k ON k.id=c.id
-             LEFT JOIN source_visits s ON s.col=c.col AND s.visit=k.visit
-             WHERE k.visit<>'' AND s.col IS NULL"""
-    for col, visit in db.execute(sql):
-        qc.append([col, visit, "FAIL"])
-        unexpected += 1
-    if not unexpected:
-        qc.append(["ALL", "", "PASS"])
-    meta = book.create_sheet("SOURCE_FILES")
-    meta.append(["LOAD_ORDER", "FILE"])
-    for i, stat in enumerate(stats, start=1):
-        meta.append([i, stat[0]])
-    summary = book.create_sheet("SUMMARY")
-    summary.append(["METRIC", "VALUE"])
-    for label, query in [
-        ("Output rows", "SELECT COUNT(*) FROM keys"),
-        ("Populated cells", "SELECT COUNT(*) FROM cells"),
-        ("Conflict events", "SELECT COUNT(*) FROM conflicts"),
-        ("Duplicate key rows", "SELECT COUNT(*) FROM duplicate_keys"),
-    ]:
-        summary.append([label, db.execute(query).fetchone()[0]])
-    summary.append(["Unexpected variable/visit combinations", unexpected])
-    book.save(folder / "QUASAR_MERGE_QC.xlsx")
-    if unexpected:
-        raise RuntimeError(f"Visit QC found {unexpected} unexpected column/visit pairs; review QUASAR_MERGE_QC.xlsx")
+
+        for value in df[column]:
+            status = availability_status(value)
+
+            if status != "Not specified":
+                statuses.append(status)
+
+    if not statuses:
+        return "Not specified"
+
+    if "Available" in statuses:
+        return "Available"
+
+    if "Pending" in statuses:
+        return "Pending"
+
+    if "Missing" in statuses:
+        return "Missing"
+
+    return statuses[0]
 
 
-def main():
-    paths = [INPUT_FOLDER / name for name in FILES_TO_MERGE]
-    missing = [str(p) for p in paths if not p.is_file()]
-    if missing:
-        raise FileNotFoundError("Missing input files:\n" + "\n".join(missing))
-    OUTPUT_FOLDER.mkdir(parents=True, exist_ok=True)
-    free_gb = shutil.disk_usage(OUTPUT_FOLDER).free / 1024 ** 3
-    print(f"Free disk: {free_gb:.1f} GiB", flush=True)
-    if free_gb < MIN_FREE_GB:
-        raise RuntimeError("Insufficient free disk space; choose another output folder")
-    db_path = OUTPUT_FOLDER / "quasar_working.sqlite"
-    if db_path.exists():
-        raise FileExistsError(f"Existing database found: {db_path}. Move/delete only if no longer needed.")
-    started = time.time()
-    db = sqlite3.connect(str(db_path))
-    success = False
-    try:
-        setup_db(db)
-        columns = list(KEYS)
-        seq = 0
-        stats = []
-        for i, path in enumerate(paths, 1):
-            print(f"[{i}/{len(paths)}] Processing {path.name}", flush=True)
-            seq, stat = import_ard(db, path, i, columns, seq)
-            stats.append(stat)
-        print("Exporting merged dataset...", flush=True)
-        nrows, csv_path, xlsx_path = export_merged(db, columns, OUTPUT_FOLDER)
-        print("Exporting QC reports...", flush=True)
-        export_reports(db, stats, OUTPUT_FOLDER)
-        print(f"SUCCESS: {nrows:,} rows, {len(columns):,} columns", flush=True)
-        print(f"CSV: {csv_path}", flush=True)
-        if xlsx_path:
-            print(f"XLSX: {xlsx_path}", flush=True)
-        print(f"QC: {OUTPUT_FOLDER / 'QUASAR_MERGE_QC.xlsx'}", flush=True)
-        print(f"Elapsed: {(time.time()-started)/60:.1f} minutes", flush=True)
-        success = True
-    finally:
-        db.close()
-        if success and not KEEP_SQLITE:
-            db_path.unlink(missing_ok=True)
+def render_location_list(locations):
+    """Render individual locations inside an expander."""
+
+    for i, location in enumerate(locations, start=1):
+
+        st.markdown(f"**Location {i}**")
+
+        # Web link
+        if location.lower().startswith(
+            (
+                "http://",
+                "https://",
+            )
+        ):
+            st.markdown(f"[Open location ↗]({location})")
+
+        # Domino / filesystem path
+        else:
+            st.code(location, language=None)
+
+        if i < len(locations):
+            st.markdown("")
 
 
-if __name__ == "__main__":
-    main()
+def render_location_asset(title, status, locations):
+    """
+    Render one asset/location section.
 
+    Uses native Streamlit components to avoid HTML
+    being displayed as raw text.
+    """
+
+    status_text = availability_status(status)
+    number_locations = len(locations)
+
+    if number_locations == 1:
+        location_label = "1 location"
+    else:
+        location_label = f"{number_locations} locations"
+
+    # -------------------------------------------------------------------------
+    # Asset summary
+    # -------------------------------------------------------------------------
+
+    col1, col2 = st.columns([5, 1])
+
+    with col1:
+        st.markdown(f"**{title}**")
+        st.caption(location_label)
+
+    with col2:
+        st.markdown(f"**{status_text}**")
+
+    # -------------------------------------------------------------------------
+    # Location details
+    # -------------------------------------------------------------------------
+
+    if locations:
+
+        if number_locations == 1:
+            expander_label = f"View 1 {title.lower()} location"
+        else:
+            expander_label = (
+                f"View {number_locations} "
+                f"{title.lower()} locations"
+            )
+
+        with st.expander(expander_label):
+            render_location_list(locations)
+
+    else:
+        st.caption("No location registered.")
+
+    st.markdown("")
+
+
+# =============================================================================
+# AVAILABILITY MATRIX
+# =============================================================================
+
+def create_availability_matrix(df):
+    """Create the compact study-level availability matrix."""
+
+    if df.empty:
+        return pd.DataFrame()
+
+    rows = []
+
+    if "Study ID" in df.columns:
+        groups = df.groupby(
+            "Study ID",
+            dropna=False,
+        )
+    else:
+        groups = [("", df)]
+
+    for study_id, study_df in groups:
+
+        row = {
+            "Study ID": study_id,
+        }
+
+        if "Study Name" in study_df.columns:
+            names = (
+                study_df["Study Name"]
+                .dropna()
+                .astype(str)
+                .str.strip()
+            )
+
+            row["Study"] = (
+                names.iloc[0]
+                if not names.empty
+                else ""
+            )
+
+        # -------------------------------------------------------------
+        # Standard availability fields
+        # -------------------------------------------------------------
+
+        standard_columns = {
+            "Med.ai": ["SDTM/ADaM (Med.ai)"],
+            "Domino": ["SDTM/ADaM (Domino)"],
+            "Videos": ["Videos"],
+            "ARD": ["Analysis-Ready-Dataset (ARD)"],
+        }
+
+        for label, columns in standard_columns.items():
+            row[label] = get_asset_status(
+                study_df,
+                columns,
+            )
+
+        # -------------------------------------------------------------
+        # Location-based assets
+        # -------------------------------------------------------------
+
+        for asset_name, config in ASSETS.items():
+
+            # SDTM/ADaM is already represented by Med.ai + Domino
+            if asset_name in {"SDTM/ADaM", "Videos", "ARD"}:
+                continue
+
+            row[asset_name] = get_asset_status(
+                study_df,
+                config["status_cols"],
+            )
+
+        rows.append(row)
+
+    matrix = pd.DataFrame(rows)
+    order = ["Study ID", "Study", "Med.ai", "Domino", "Videos", "ARD",
+             "Annotations", "Clinical GT", "Feature Vectors", "IUS"]
+    return matrix[[col for col in order if col in matrix.columns]]
+
+
+def render_availability_heatmap(matrix):
+    """Interactive availability matrix with J&J red status palette."""
+    if matrix.empty:
+        st.info("No availability records for the current selection.")
+        return
+
+    columns = [c for c in matrix.columns if c not in ("Study ID", "Study")]
+    if not columns:
+        st.info("No asset status columns found.")
+        return
+
+    statuses = ["Missing", "Pending", "Available", "Not specified"]
+    codes = {"Missing": 0, "Pending": 1, "Available": 2, "Not specified": 3}
+    symbols = {"Missing": "✕", "Pending": "◐", "Available": "✓", "Not specified": "?"}
+    # Discrete bands across a continuous Plotly heatmap scale.
+    colors = ["#4B5563", "#ECA49E", "#EB1700", "#303744"]
+    scale = []
+    for idx, color in enumerate(colors):
+        scale.extend([(idx / 4, color), ((idx + 1) / 4, color)])
+
+    z, labels, hover = [], [], []
+    for _, record in matrix.iterrows():
+        z_row, label_row, hover_row = [], [], []
+        for column in columns:
+            status = availability_status(record[column])
+            if status not in codes:
+                status = "Not specified"
+            z_row.append(codes[status])
+            label_row.append(symbols[status])
+            hover_row.append(
+                f"Study: {record.get('Study', '')}<br>"
+                f"Study ID: {record.get('Study ID', '')}<br>"
+                f"Asset: {column}<br>Status: {status}"
+            )
+        z.append(z_row)
+        labels.append(label_row)
+        hover.append(hover_row)
+
+    names = matrix["Study"].astype(str).tolist() if "Study" in matrix else [str(i + 1) for i in range(len(matrix))]
+    # Unique axis labels, even when a study name occurs more than once.
+    y_ids = [str(i) for i in range(len(names))]
+    fig = go.Figure(go.Heatmap(
+        z=z, x=columns, y=y_ids, zmin=-0.5, zmax=3.5,
+        colorscale=scale, showscale=False,
+        text=labels, texttemplate="%{text}", textfont=dict(size=15, color="white"),
+        customdata=hover, hovertemplate="%{customdata}<extra></extra>",
+        xgap=4, ygap=4,
+    ))
+    fig.update_layout(
+        height=max(190, min(950, 90 + 37 * len(names))),
+        margin=dict(l=10, r=10, t=35, b=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#AAB2C0"),
+        xaxis=dict(side="top", tickfont=dict(size=11), fixedrange=True),
+        yaxis=dict(autorange="reversed", tickmode="array", tickvals=y_ids,
+                   ticktext=names, tickfont=dict(size=11), fixedrange=True),
+    )
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
+
+# =============================================================================
+# KPI CALCULATIONS
+# =============================================================================
+
+def count_studies_with_asset(df, asset_name):
+    """Count studies where an asset is available."""
+
+    if df.empty:
+        return 0
+
+    config = ASSETS[asset_name]
+
+    count = 0
+
+    if "Study ID" in df.columns:
+        groups = df.groupby(
+            "Study ID",
+            dropna=False,
+        )
+    else:
+        groups = [("", df)]
+
+    for _, study_df in groups:
+
+        status = get_asset_status(
+            study_df,
+            config["status_cols"],
+        )
+
+        if status == "Available":
+            count += 1
+
+    return count
+
+
+# =============================================================================
+# DATA LOCATIONS
+# =============================================================================
+
+def render_data_locations(df):
+    """
+    Show detailed locations when exactly one study is selected.
+    """
+
+    if df.empty:
+        return
+
+    if "Study ID" not in df.columns:
+        return
+
+    study_ids = (
+        df["Study ID"]
+        .dropna()
+        .astype(str)
+        .unique()
+    )
+
+    if len(study_ids) != 1:
+        st.info(
+            "Select a single study from the sidebar "
+            "to view detailed data locations."
+        )
+        return
+
+    study_id = study_ids[0]
+
+    study_df = df[
+        df["Study ID"].astype(str) == study_id
+    ].copy()
+
+    # -------------------------------------------------------------------------
+    # Study identification
+    # -------------------------------------------------------------------------
+
+    study_name = ""
+
+    if "Study Name" in study_df.columns:
+
+        names = (
+            study_df["Study Name"]
+            .dropna()
+            .astype(str)
+            .str.strip()
+        )
+
+        if not names.empty:
+            study_name = names.iloc[0]
+
+    if study_name:
+        st.subheader(study_name)
+
+    st.caption(study_id)
+
+    # -------------------------------------------------------------------------
+    # Assets
+    # -------------------------------------------------------------------------
+
+    for asset_name, config in ASSETS.items():
+
+        locations = get_locations(
+            study_df,
+            config["location_col"],
+        )
+
+        status = get_asset_status(
+            study_df,
+            config["status_cols"],
+        )
+
+        render_location_asset(
+            asset_name,
+            status,
+            locations,
+        )
+
+
+# =============================================================================
+# MAIN RENDER
+# =============================================================================
+
+def render(filtered, data):
+
+    # -------------------------------------------------------------------------
+    # Header
+    # -------------------------------------------------------------------------
+
+    st.header("Data Availability")
+
+    st.markdown(
+        """
+        <div class="section-note">
+        Study-level availability across clinical source data,
+        SDTM/ADaM, analysis-ready datasets, annotations,
+        clinical ground truth, feature vectors and IUS.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    df = filtered.get(
+        "02_DATA_AVAILABILITY",
+        pd.DataFrame(),
+    )
+
+    if df.empty:
+        st.info(
+            "No data availability information is available "
+            "for the current selection."
+        )
+        return
+
+    # -------------------------------------------------------------------------
+    # KPI CARDS
+    # -------------------------------------------------------------------------
+
+    number_studies = (
+        df["Study ID"].nunique()
+        if "Study ID" in df.columns
+        else 0
+    )
+
+    videos_available = len(get_locations(df, "Videos Location"))
+
+    sdtm_available = len(
+    get_locations(df, "SDTM/ADaM Location")
+    )
+
+    ard_available = ard_available = count_studies_with_asset(df, "ARD")
+
+    annotations_available = len(
+    get_locations(df, "Annotations Location")
+    )
+
+    clinical_gt_available = len(
+    get_locations(df, "Clinical GT Location")
+    )
+
+    ius_available = len(get_locations(df, "IUS Location"))
+
+    feature_vectors_available = len(
+    get_locations(df, "Feature Vectors Location")
+    )
+
+    c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(8)
+
+    c1.metric(
+        "Studies",
+        number_studies,
+    )
+
+    c2.metric("Studies w/ Videos", videos_available)
+
+    c3.metric(
+        "SDTM/ADaM",
+        sdtm_available,
+    )
+
+    c4.metric(
+        "ARD",
+        ard_available,
+    )
+
+    c5.metric(
+        "Annotations",
+        annotations_available,
+    )
+
+    c6.metric(
+        "Clinical GT",
+        clinical_gt_available,
+    )
+
+    c7.metric(
+        "Feature Vectors",
+        feature_vectors_available,
+    )
+
+    c8.metric("IUS", ius_available)
+
+    # -------------------------------------------------------------------------
+    # AVAILABILITY MATRIX
+    # -------------------------------------------------------------------------
+
+    st.markdown("### Availability Matrix")
+
+    st.markdown(
+        '<div class="section-note">Study-level overview of asset availability. '
+        'Hover over cells for detailed status.</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.caption("🔴 Available (✓) · ⚪ Missing (✕)")
+    matrix = create_availability_matrix(df)
+    render_availability_heatmap(matrix)
+
+    # -------------------------------------------------------------------------
+    # DATA LOCATIONS
+    # -------------------------------------------------------------------------
+
+    st.markdown("---")
+
+    st.markdown("### Data Locations")
+
+    st.markdown(
+        """
+        <div class="section-note">
+        Detailed storage locations are shown when a single
+        study is selected from the sidebar.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    render_data_locations(df)
